@@ -11,15 +11,14 @@ public class LightSpeedRetailXConstants {
     }
 
     public static final String CONNECTOR_NAME = "LIGHTSPEED_RETAIL_X";
-    public static final String OUTPUT_PATH = "/home/nihar/work/aicg/output/";
 
     public static final class LightSpeedXRetailAPI {
         private LightSpeedXRetailAPI() {
         }
 
         public static final String TIMEZONE = "UTC";
-        public static final String API_KEY = "lsxs_at_e9frlhXOGwRFdSPkLVk4GuYmRb9eWS3w";
-        public static final String API_URL = "https://developerdemoeumnh2.retail.lightspeed.app/api";
+        public static final String API_KEY = "lsxs_at_t4z6HeMxOh1nCXWMg4TQQJ9bhzf0k1M3";
+        public static final String API_URL = "https://developerdemosl0p6y.retail.lightspeed.app/api";
     }
 
     public static final class LightSpeedXRetailEntityNames {

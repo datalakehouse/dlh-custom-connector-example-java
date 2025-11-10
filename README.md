@@ -31,7 +31,8 @@ curl --location 'http://localhost:8080/runConnector' \
   "connectorName": "LIGHTSPEED_RETAIL_X",
   "connectorType": "REST",
   "csvRowLimit": 500,
-  "threadPoolSize": 10
+  "threadPoolSize": 10,
+  "outputPath": "<output_path>"
 }'
 ```
 

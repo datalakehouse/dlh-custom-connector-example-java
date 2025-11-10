@@ -7,6 +7,8 @@ public class RunConnectorRequest {
     private ConnectionTypeOptions connectorType;
     private int csvRowLimit;
     private int threadPoolSize;
+    private String outputPath;
+    private String outputType;
 
     // Getters and Setters
     public ConnectionTypeOptions getConnectorType() {
@@ -39,5 +41,21 @@ public class RunConnectorRequest {
 
     public void setConnectorName(String connectorName) {
         this.connectorName = connectorName;
+    }
+
+    public String getOutputPath() {
+        return outputPath;
+    }
+
+    public void setOutputPath(String outputPath) {
+        this.outputPath = outputPath;
+    }
+
+    public String getOutputType() {
+        return outputType;
+    }
+
+    public void setOutputType(String outputType) {
+        this.outputType = outputType;
     }
 }

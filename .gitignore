@@ -1,0 +1,13 @@
+# OSX
+.DS_Store
+
+#.mvn/
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.logs
+*.iml
+.idea/
+.eclipse
