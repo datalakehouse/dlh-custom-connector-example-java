@@ -9,6 +9,8 @@ public class RunConnectorRequest {
     private int threadPoolSize;
     private String outputPath;
     private String outputType;
+    private String accessToken;
+    private String lastSyncDate;
 
     // Getters and Setters
     public ConnectionTypeOptions getConnectorType() {
@@ -57,5 +59,21 @@ public class RunConnectorRequest {
 
     public void setOutputType(String outputType) {
         this.outputType = outputType;
+    }
+
+    public String getAccessToken() {
+        return accessToken;
+    }
+
+    public void setAccessToken(String accessToken) {
+        this.accessToken = accessToken;
+    }
+
+    public String getLastSyncDate() {
+        return lastSyncDate;
+    }
+
+    public void setLastSyncDate(String lastSyncDate) {
+        this.lastSyncDate = lastSyncDate;
     }
 }
