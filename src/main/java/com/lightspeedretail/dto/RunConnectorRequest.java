@@ -13,7 +13,7 @@ public class RunConnectorRequest {
     private String accessToken;
     private String lastSyncDate;
 
-    // OAuth2 fields for Gusto
+    // OAuth2 fields for refresh token
     private String clientId;
     private String clientSecret;
     private String refreshToken;

@@ -27,7 +27,7 @@ public class GustoService {
         try (HttpClient client = HttpClient.newHttpClient()) {
             HttpRequest request = HttpRequest
                     .newBuilder()
-                    .uri(URI.create(GustoConstants.getGustoBaseUrl(environment) + "/v1/token_info"))
+                    .uri(URI.create(GustoConstants.getGustoBaseUrl(environment) + GustoConstants.TOKEN_INFO_URI))
                     .header(GustoConstants.API_VERSION_HEADER, GustoConstants.API_VERSION)
                     .header("accept", "application/json")
                     .header("authorization", "Bearer " + accessToken)
