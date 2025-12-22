@@ -5,6 +5,7 @@ import com.lightspeedretail.common.LightSpeedRetailXConstants;
 import com.lightspeedretail.connector.GustoConnector;
 import com.lightspeedretail.connector.LightSpeedRetailXConnector;
 import com.lightspeedretail.dto.RunConnectorRequest;
+import com.lightspeedretail.restconnection.GustoRestConnectionType;
 import com.lightspeedretail.service.GustoService;
 import io.datalakehouse.config.Config;
 import io.datalakehouse.connectors.core.Connector;
@@ -58,29 +59,46 @@ public class ConnectorController {
                 request.getConnectorName().equals(GustoConstants.CONNECTOR_NAME)) {
             try {
                 // Fetch company ID from token info endpoint
-                String companyId = GustoService.getCompanyId(request.getAccessToken());
+                String companyId = GustoService.getCompanyId(request.getAccessToken(), request.getEnvironment());
 
                 Map<String, String> queryParams = Map.of();
                 Config config = new Config(
                         GustoConstants.CONNECTOR_NAME, request.getCsvRowLimit(), request.getThreadPoolSize(),
-                        GustoConstants.excludedEntities, GustoConstants.GustoAPI.API_URL, request.getAccessToken());
+                        GustoConstants.excludedEntities, GustoConstants.getGustoBaseUrl(request.getEnvironment()),
+                        request.getAccessToken());
 
-                Connector gustoConnector =
-                        new GustoConnector(request.getConnectorType(), config, request.getOutputPath());
-
-                Map<String, String> customHeaders = Map.of("X-Gusto-API-Version", "2025-06-15");
+                // Create GustoRestConnectionType with OAuth2 support if refresh token is provided
+                Connector gustoConnector;
+                if (request.getRefreshToken() != null && !request.getRefreshToken().isEmpty()) {
+                    GustoRestConnectionType gustoConnection = new GustoRestConnectionType(
+                            GustoConstants.getGustoBaseUrl(request.getEnvironment()),
+                            request.getAccessToken(),
+                            request.getClientId(),
+                            request.getClientSecret(),
+                            request.getRefreshToken(),
+                            request.getRedirectUri(),
+                            request.getAuthorizationCode()
+                    );
+                    gustoConnector = new GustoConnector(gustoConnection, config, request.getOutputPath());
+                } else {
+                    System.out.println("Using Gusto with static access token");
+                    GustoRestConnectionType gustoConnection = new GustoRestConnectionType(
+                            GustoConstants.getGustoBaseUrl(request.getEnvironment()),
+                            request.getAccessToken()
+                    );
+                    gustoConnector = new GustoConnector(gustoConnection, config, request.getOutputPath());
+                }
 
                 if (Objects.nonNull(request.getLastSyncDate())) {
                     LocalDate startDate = LocalDate.parse(request.getLastSyncDate());
                     queryParams = Map.of("start_date", startDate.toString());
-                    gustoConnector.run(
-                            Map.of(
-                                    GustoConstants.GustoEntityNames.PAY_PERIODS,
-                                    GustoConstants.GustoHeaders.PAY_PERIODS), queryParams, customHeaders,
+                    gustoConnector.run(GustoConstants.DELTA_HEADERS_BY_ENTITY, queryParams,
+                            Map.of(GustoConstants.API_VERSION_HEADER, GustoConstants.API_VERSION),
                             GustoConstants.getEntityApiPathMap(companyId), GustoConstants.ENTITY_DEPENDENCY_MAP);
                 } else {
                     gustoConnector.run(
-                            GustoConstants.HEADERS_BY_ENTITY, queryParams, customHeaders,
+                            GustoConstants.HEADERS_BY_ENTITY, queryParams,
+                            Map.of(GustoConstants.API_VERSION_HEADER, GustoConstants.API_VERSION),
                             GustoConstants.getEntityApiPathMap(companyId), GustoConstants.ENTITY_DEPENDENCY_MAP);
                 }
             } catch (DateTimeException dte) {

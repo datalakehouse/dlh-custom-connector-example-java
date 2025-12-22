@@ -22,13 +22,13 @@ public class GustoService {
         public record ResourceOwner(String type, String uuid) {}
     }
 
-    public static String getCompanyId(String accessToken) throws IOException, InterruptedException {
+    public static String getCompanyId(String accessToken, String environment) throws IOException, InterruptedException {
 
         try (HttpClient client = HttpClient.newHttpClient()) {
             HttpRequest request = HttpRequest
                     .newBuilder()
-                    .uri(URI.create(GustoConstants.GustoAPI.API_URL + "/v1/token_info"))
-                    .header("X-Gusto-API-Version", "2025-06-15")
+                    .uri(URI.create(GustoConstants.getGustoBaseUrl(environment) + "/v1/token_info"))
+                    .header(GustoConstants.API_VERSION_HEADER, GustoConstants.API_VERSION)
                     .header("accept", "application/json")
                     .header("authorization", "Bearer " + accessToken)
                     .GET()

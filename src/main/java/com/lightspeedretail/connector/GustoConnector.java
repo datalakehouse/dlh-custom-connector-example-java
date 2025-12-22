@@ -6,9 +6,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lightspeedretail.common.CoreCustomConstants;
 import com.lightspeedretail.common.GustoConstants;
-import com.lightspeedretail.utils.JsonUtils;
+import io.datalakehouse.common.JsonUtils;
 import io.datalakehouse.config.Config;
-import io.datalakehouse.connectors.core.ConnectionTypeOptions;
+import io.datalakehouse.connectors.core.ConnectionType;
 import io.datalakehouse.connectors.core.Connector;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,8 +21,8 @@ import org.apache.commons.lang3.StringUtils;
 
 public class GustoConnector extends Connector {
 
-    public GustoConnector(ConnectionTypeOptions type, Config config, String outputPath) {
-        super(type, config, outputPath);
+    public GustoConnector(ConnectionType connectionType, Config config, String outputPath) {
+        super(connectionType, config, outputPath);
     }
 
     @Override
@@ -39,10 +39,8 @@ public class GustoConnector extends Connector {
         // Add header row for new file
         List<String> allHeaders = new ArrayList<>();
         allHeaders.addAll(headers);
-        allHeaders.addAll(List.of(GustoConstants.dlhCommonColumns));
         csvChunk.add(allHeaders.toArray(new String[0]));
 
-        String targetHeader = "UUID";
         String idValue;
         ObjectMapper mapper = new ObjectMapper();
         JsonFactory factory = mapper.getFactory();
@@ -79,7 +77,7 @@ public class GustoConnector extends Connector {
                         // Treat the entire object as a single record
                         System.out.println("No array found, treating root as single record");
                         List<String> rowValues = mapValues(rootNode, allHeaders);
-                        idValue = getValueForHeader(allHeaders, rowValues, targetHeader);
+                        idValue = getValueForHeader(allHeaders, rowValues, GustoConstants.ID_HEADERS);
                         if (null != idValue) {
                             entityIds.add(idValue);
                         }
@@ -121,7 +119,7 @@ public class GustoConnector extends Connector {
                         // Process each object in the wrapped array
                         for (JsonNode innerNode : recordNode) {
                             rowValues = mapValues(innerNode, allHeaders);
-                            idValue = getValueForHeader(allHeaders, rowValues, targetHeader);
+                            idValue = getValueForHeader(allHeaders, rowValues, GustoConstants.ID_HEADERS);
 
                             if (null != idValue) {
                                 entityIds.add(idValue);
@@ -138,7 +136,7 @@ public class GustoConnector extends Connector {
                     } else {
                         // Not an array, process directly as an object
                         rowValues = mapValues(recordNode, allHeaders);
-                        idValue = getValueForHeader(allHeaders, rowValues, targetHeader);
+                        idValue = getValueForHeader(allHeaders, rowValues, GustoConstants.ID_HEADERS);
 
                         if (null != idValue) {
                             entityIds.add(idValue);
@@ -178,7 +176,6 @@ public class GustoConnector extends Connector {
     public List<String> mapValues(JsonNode recordNode, List<String> headers) {
         ObjectMapper mapper = new ObjectMapper();
         List<String> rowValues = new ArrayList<>();
-        Instant currentTs = Instant.now();
 
         // Build case-insensitive lookup map ONCE per record
         Map<String, JsonNode> fieldMap = new HashMap<>();
@@ -199,8 +196,8 @@ public class GustoConnector extends Connector {
                 case "__DLH_IS_ACTIVE" -> rowValues.add("true");
 
                 default -> {
-                    if (header.endsWith("_TS")) {
-                        rowValues.add(currentTs.toString());
+                    if (CoreCustomConstants.DLH_TS_COLUMNS.contains(header)) {
+                        rowValues.add(Instant.now().toString());
                         continue;
                     }
 
@@ -242,10 +239,6 @@ public class GustoConnector extends Connector {
         }
 
         return null;
-    }
-
-    public static String getValueForHeader(List<String> allHeaders, List<String> rowValues, String headerName) {
-        return getValueForHeader(allHeaders, rowValues, new String[]{headerName});
     }
 
     public static String getValueForHeader(List<String> allHeaders, List<String> rowValues, String... headerNames) {

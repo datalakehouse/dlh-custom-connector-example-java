@@ -6,16 +6,25 @@ import java.util.Map;
 
 public class GustoConstants {
 
-    public static final String CONNECTOR_NAME = "GUSTO_CONNECTOR";
+    public static final String CONNECTOR_NAME = "GUSTO";
 
-    public static final class GustoAPI {
-        // TODO : Need to switch to Prod API URL when actual integration is done.
-        // Demo API URL: https://api.gusto-demo.com
-        // Prod API URL: https://api.gusto.com
-        public static final String API_URL = "https://api.gusto-demo.com";
+    public static String getGustoBaseUrl(String environment) {
+        if (environment == null || environment.isBlank()) {
+            return "https://api.gusto-demo.com"; // default
+        }
 
-        private GustoAPI() {}
+        return switch (environment.trim().toUpperCase()) {
+            case "PROD", "PRODUCTION" -> "https://api.gusto.com";
+            case "DEMO", "SANDBOX" -> "https://api.gusto-demo.com";
+            default -> throw new IllegalArgumentException(
+                    "Unsupported Gusto environment: " + environment
+            );
+        };
     }
+
+    public static final String API_VERSION_HEADER = "X-Gusto-API-Version";
+    public static final String API_VERSION = "2025-06-15";
+    public static final String[] ID_HEADERS = {"UUID", "ID"};
 
     public static final class GustoEntityNames {
         public static final String COMPANY = "COMPANY";
@@ -88,48 +97,10 @@ public class GustoConstants {
         private GustoHeaders() {}
     }
 
-    public static final String[] dlhCommonColumns = new String[]{};
-
-
-    public static final Map<String, String> ENTITY_VERSION_MAP = Map.<String, String>ofEntries(
-            Map.entry(GustoEntityNames.TOKEN_INFO, "v1"),
-            Map.entry(GustoEntityNames.COMPANY, "v1"),
-            Map.entry(GustoEntityNames.COMPANY_ADMINS, "v1"),
-            Map.entry(GustoEntityNames.CUSTOM_FIELDS, "v1"),
-            Map.entry(GustoEntityNames.COMPANY_LOCATIONS, "v1"),
-            Map.entry(GustoEntityNames.PAY_SCHEDULES, "v1"),
-            Map.entry(GustoEntityNames.EARNING_TYPES, "v1"),
-            Map.entry(GustoEntityNames.PAYROLLS, "v1"),
-            Map.entry(GustoEntityNames.COMPANY_BENEFITS, "v1"),
-            Map.entry(GustoEntityNames.BENEFITS, "v1"),
-            Map.entry(GustoEntityNames.DEPARTMENTS, "v1"),
-            Map.entry(GustoEntityNames.TIMESHEETS, "v1"),
-            Map.entry(GustoEntityNames.EMPLOYEES, "v1"),
-            Map.entry(GustoEntityNames.EMPLOYEE_HOME_ADDRESSES, "v1"),
-            Map.entry(GustoEntityNames.EMPLOYEE_WORK_ADDRESSES, "v1"),
-            Map.entry(GustoEntityNames.EMPLOYEE_CUSTOM_FIELDS, "v1"),
-            Map.entry(GustoEntityNames.EMPLOYEE_TIME_OFF_ACTIVITIES, "v1"),
-            Map.entry(GustoEntityNames.EMPLOYEE_TERMINATIONS, "v1"),
-            Map.entry(GustoEntityNames.EMPLOYEE_REHIRE, "v1"),
-            Map.entry(GustoEntityNames.JOBS, "v1"),
-            Map.entry(GustoEntityNames.JOBS_COMPENSATIONS, "v1"),
-            Map.entry(GustoEntityNames.EMPLOYEE_BENEFITS, "v1"),
-            Map.entry(GustoEntityNames.CONTRIBUTION_EXCLUSIONS, "v1"),
-            Map.entry(GustoEntityNames.GARNISHMENTS, "v1"),
-            Map.entry(GustoEntityNames.CONTRACTORS, "v1"),
-            Map.entry(GustoEntityNames.PAY_PERIODS, "v1"),
-            Map.entry(GustoEntityNames.PAY_SCHEDULES_ASSIGNMENTS, "v1"),
-            Map.entry(GustoEntityNames.LOCATIONS_MINIMUM_WAGES, "v1"),
-            Map.entry(GustoEntityNames.CONTRACTOR_PAYMENTS, "v1"),
-            Map.entry(GustoEntityNames.RECURRING_REIMBURSEMENTS, "v1"));
-
     public static List<String> excludedEntities = List.of();
     public static String getUrl(String entityName){
-        return ENTITY_VERSION_MAP.get(entityName) + "/" + entityName.toLowerCase();
+        return "v1/" + entityName.toLowerCase();
     }
-
-
-    public static Map<String, String> ENTITY_API_PATH_MAP = new HashMap<>();
 
     // Define entity dependencies
     public static final Map<String, List<String>> ENTITY_DEPENDENCY_MAP = Map.ofEntries(Map.entry(
@@ -172,88 +143,43 @@ public class GustoConstants {
             //            Map.entry(GustoEntityNames.EMPLOYEE_REHIRE, GustoHeaders.EMPLOYEE_REHIRE),
             );
 
+    // Define delta headers by entity
+    public static final Map<String, String[]> DELTA_HEADERS_BY_ENTITY = Map.ofEntries(
+            Map.entry(GustoEntityNames.PAY_PERIODS, GustoHeaders.PAY_PERIODS)
+    );
+
+
+    public static Map<String, String> ENTITY_API_PATH_MAP = new HashMap<>();
 
     public static Map<String, String> getEntityApiPathMap(String companyId){
         // Generate API path map
 
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.COMPANY, ENTITY_VERSION_MAP.get(GustoEntityNames.COMPANY) + "/companies/" + companyId);
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.COMPANY_ADMINS, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.COMPANY_ADMINS) + "/companies/" + companyId + "/admins");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.COMPANY_LOCATIONS, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.COMPANY_LOCATIONS) + "/companies/" + companyId + "/locations");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.PAY_SCHEDULES, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.PAY_SCHEDULES) + "/companies/" + companyId + "/pay_schedules");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.COMPANY_BENEFITS, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.COMPANY_BENEFITS) + "/companies/" + companyId + "/company_benefits");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.DEPARTMENTS, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.DEPARTMENTS) + "/companies/" + companyId + "/departments");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.EMPLOYEES, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.EMPLOYEES) + "/companies/" + companyId + "/employees");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.PAYROLLS, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.PAYROLLS) + "/companies/" + companyId + "/payrolls");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.BENEFITS, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.BENEFITS) + "/benefits");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.TIMESHEETS, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.TIMESHEETS) +"/companies/" + companyId + "/time_tracking/time_sheets");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.CONTRACTORS, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.CONTRACTORS) + "/companies/" + companyId + "/contractors");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.EMPLOYEE_HOME_ADDRESSES, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.EMPLOYEE_HOME_ADDRESSES) + "/employees/{employee_id}/home_addresses");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.EMPLOYEE_WORK_ADDRESSES, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.EMPLOYEE_WORK_ADDRESSES) + "/employees/{employee_id}/work_addresses");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.EMPLOYEE_TERMINATIONS, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.EMPLOYEE_TERMINATIONS) + "/employees/{employee_id}/terminations");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.EMPLOYEE_REHIRE, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.EMPLOYEE_REHIRE) + "/employees/{employee_id}/rehire");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.JOBS, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.JOBS) + "/employees/{employee_id}/jobs");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.GARNISHMENTS, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.GARNISHMENTS) + "/employees/{employee_id}/garnishments");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.EMPLOYEE_BENEFITS, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.EMPLOYEE_BENEFITS) + "/employees/{employee_id}/employee_benefits");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.RECURRING_REIMBURSEMENTS, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.RECURRING_REIMBURSEMENTS) + "/employees/{employee_id}/recurring_reimbursements");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.JOBS_COMPENSATIONS, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.JOBS_COMPENSATIONS) + "/jobs/{job_id}/compensations");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.PAY_PERIODS, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.PAY_PERIODS) + "/companies/" + companyId + "/pay_periods");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.PAY_SCHEDULES_ASSIGNMENTS, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.PAY_SCHEDULES_ASSIGNMENTS) + "/companies/" + companyId + "/pay_schedules/assignments");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.EMPLOYEE_TIME_OFF_ACTIVITIES, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.EMPLOYEE_TIME_OFF_ACTIVITIES) + "/employees/{employee_id}/time_off_activities");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.CONTRACTOR_PAYMENTS, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.CONTRACTORS) + "/companies/" + companyId + "/contractor_payments");
-
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.LOCATIONS_MINIMUM_WAGES, ENTITY_VERSION_MAP.get(
-                        GustoEntityNames.LOCATIONS_MINIMUM_WAGES) + "/locations/{company_location_id}/minimum_wages");
-        ENTITY_API_PATH_MAP.put(
-                GustoEntityNames.EARNING_TYPES, ENTITY_VERSION_MAP.get(
-                GustoEntityNames.EARNING_TYPES) + "/companies/" + companyId + "/earning_types");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.COMPANY, "v1/companies/" + companyId);
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.COMPANY_ADMINS,"v1/companies/" + companyId + "/admins");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.COMPANY_LOCATIONS, "v1/companies/" + companyId + "/locations");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.PAY_SCHEDULES,  "v1/companies/" + companyId + "/pay_schedules");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.COMPANY_BENEFITS, "v1/companies/" + companyId + "/company_benefits");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.DEPARTMENTS,  "v1/companies/" + companyId + "/departments");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.EMPLOYEES,  "v1/companies/" + companyId + "/employees");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.PAYROLLS,  "v1/companies/" + companyId + "/payrolls");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.BENEFITS,  "v1/benefits");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.TIMESHEETS, "v1/companies/" + companyId + "/time_tracking/time_sheets");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.CONTRACTORS,  "v1/companies/" + companyId + "/contractors");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.EMPLOYEE_HOME_ADDRESSES,  "v1/employees/{employee_id}/home_addresses");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.EMPLOYEE_WORK_ADDRESSES,  "v1/employees/{employee_id}/work_addresses");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.EMPLOYEE_TERMINATIONS,  "v1/employees/{employee_id}/terminations");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.EMPLOYEE_REHIRE,  "v1/employees/{employee_id}/rehire");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.JOBS,  "v1/employees/{employee_id}/jobs");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.GARNISHMENTS,  "v1/employees/{employee_id}/garnishments");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.EMPLOYEE_BENEFITS,  "v1/employees/{employee_id}/employee_benefits");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.RECURRING_REIMBURSEMENTS,  "v1/employees/{employee_id}/recurring_reimbursements");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.JOBS_COMPENSATIONS,  "v1/jobs/{job_id}/compensations");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.PAY_PERIODS,  "v1/companies/" + companyId + "/pay_periods");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.PAY_SCHEDULES_ASSIGNMENTS,  "v1/companies/" + companyId + "/pay_schedules/assignments");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.EMPLOYEE_TIME_OFF_ACTIVITIES,  "v1/employees/{employee_id}/time_off_activities");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.CONTRACTOR_PAYMENTS,  "v1/companies/" + companyId + "/contractor_payments");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.LOCATIONS_MINIMUM_WAGES,  "v1/locations/{company_location_id}/minimum_wages");
+        ENTITY_API_PATH_MAP.put(GustoEntityNames.EARNING_TYPES,  "v1/companies/" + companyId + "/earning_types");
 
         HEADERS_BY_ENTITY.keySet().forEach(entity -> ENTITY_API_PATH_MAP.putIfAbsent(entity, getUrl(entity)));
 
