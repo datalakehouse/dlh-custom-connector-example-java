@@ -9,6 +9,16 @@ public class RunConnectorRequest {
     private int threadPoolSize;
     private String outputPath;
     private String outputType;
+    private String environment;
+    private String accessToken;
+    private String lastSyncDate;
+
+    // OAuth2 fields for refresh token
+    private String clientId;
+    private String clientSecret;
+    private String refreshToken;
+    private String redirectUri;
+    private String authorizationCode;
 
     // Getters and Setters
     public ConnectionTypeOptions getConnectorType() {
@@ -57,5 +67,69 @@ public class RunConnectorRequest {
 
     public void setOutputType(String outputType) {
         this.outputType = outputType;
+    }
+
+    public String getAccessToken() {
+        return accessToken;
+    }
+
+    public void setAccessToken(String accessToken) {
+        this.accessToken = accessToken;
+    }
+
+    public String getLastSyncDate() {
+        return lastSyncDate;
+    }
+
+    public String getEnvironment() {
+        return environment;
+    }
+
+    public void setEnvironment(String environment) {
+        this.environment = environment;
+    }
+
+    public void setLastSyncDate(String lastSyncDate) {
+        this.lastSyncDate = lastSyncDate;
+    }
+
+    public String getClientId() {
+        return clientId;
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
+    }
+
+    public String getClientSecret() {
+        return clientSecret;
+    }
+
+    public void setClientSecret(String clientSecret) {
+        this.clientSecret = clientSecret;
+    }
+
+    public String getRefreshToken() {
+        return refreshToken;
+    }
+
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
+    }
+
+    public String getRedirectUri() {
+        return redirectUri;
+    }
+
+    public void setRedirectUri(String redirectUri) {
+        this.redirectUri = redirectUri;
+    }
+
+    public String getAuthorizationCode() {
+        return authorizationCode;
+    }
+
+    public void setAuthorizationCode(String authorizationCode) {
+        this.authorizationCode = authorizationCode;
     }
 }
