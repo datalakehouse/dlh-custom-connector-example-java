@@ -85,7 +85,7 @@ public class GustoRestConnectionType extends RestConnectionType {
                 this.currentAccessToken = json.getString("access_token");
 
                 // Update refresh token if a new one is provided
-                if (json.has("gta")) {
+                if (json.has("refresh_token")) {
                     this.refreshToken = json.getString("refresh_token");
                 }
 
