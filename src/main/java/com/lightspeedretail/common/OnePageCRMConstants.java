@@ -151,13 +151,13 @@ public class OnePageCRMConstants {
             Map.entry(OnePageCRMEntityNames.STATUSES, OnePageCRMHeaders.STATUSES),
             Map.entry(OnePageCRMEntityNames.USERS, OnePageCRMHeaders.USERS));
 
-    public static Map<String, String> ENTITY_API_PATH_MAP = new HashMap<>();
-    public static String getUrl(String entityName){
+    public static String getUriPath(String entityName){
         return entityName.toLowerCase();
     }
 
+    public static Map<String, String> ENTITY_API_PATH_MAP = new HashMap<>();
     public static Map<String, String> getEntityApiPathMap() {
-        HEADERS_BY_ENTITY.keySet().forEach(entity -> ENTITY_API_PATH_MAP.putIfAbsent(entity, getUrl(entity)));
+        HEADERS_BY_ENTITY.keySet().forEach(entity -> ENTITY_API_PATH_MAP.putIfAbsent(entity, getUriPath(entity)));
         return ENTITY_API_PATH_MAP;
     }
 
