@@ -20,6 +20,10 @@ public class RunConnectorRequest {
     private String redirectUri;
     private String authorizationCode;
 
+    // Basic Auth fields
+    private String username;
+    private String password;
+
     // Getters and Setters
     public ConnectionTypeOptions getConnectorType() {
         return connectorType;
@@ -131,5 +135,21 @@ public class RunConnectorRequest {
 
     public void setAuthorizationCode(String authorizationCode) {
         this.authorizationCode = authorizationCode;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 }
