@@ -2,15 +2,21 @@ package com.lightspeedretail;
 
 import com.lightspeedretail.common.GustoConstants;
 import com.lightspeedretail.common.LightSpeedRetailXConstants;
+import com.lightspeedretail.common.OnePageCRMConstants;
 import com.lightspeedretail.connector.GustoConnector;
 import com.lightspeedretail.connector.LightSpeedRetailXConnector;
+import com.lightspeedretail.connector.OnePageCRMConnector;
 import com.lightspeedretail.dto.RunConnectorRequest;
 import com.lightspeedretail.restconnection.GustoRestConnectionType;
+import com.lightspeedretail.restconnection.OnePageCRMRestConnectionType;
 import com.lightspeedretail.service.GustoService;
 import io.datalakehouse.config.Config;
 import io.datalakehouse.connectors.core.Connector;
+import io.datalakehouse.connectors.core.PaginationInfo;
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -95,6 +101,9 @@ public class ConnectorController {
                     gustoConnector.run(GustoConstants.DELTA_HEADERS_BY_ENTITY, queryParams,
                             Map.of(GustoConstants.API_VERSION_HEADER, GustoConstants.API_VERSION),
                             GustoConstants.getEntityApiPathMap(companyId), GustoConstants.ENTITY_DEPENDENCY_MAP);
+                    gustoConnector.run(GustoConstants.NON_DELTA_HEADERS_BY_ENTITY, Map.of(),
+                            Map.of(GustoConstants.API_VERSION_HEADER, GustoConstants.API_VERSION),
+                            GustoConstants.getEntityApiPathMap(companyId), GustoConstants.ENTITY_DEPENDENCY_MAP);
                 } else {
                     gustoConnector.run(
                             GustoConstants.HEADERS_BY_ENTITY, queryParams,
@@ -106,10 +115,70 @@ public class ConnectorController {
             } catch (Exception e) {
                 return "Error: " + e.getMessage();
             }
+        } else if (null != request.getConnectorName() &&
+                request.getConnectorName().equals(OnePageCRMConstants.CONNECTOR_NAME)) {
+
+            try {
+                // Create connection with appropriate authentication
+                OnePageCRMRestConnectionType connection;
+                connection =
+                        new OnePageCRMRestConnectionType(
+                                OnePageCRMConstants.BASE_API_URL,
+                                request.getUsername(), request.getPassword());
+
+
+                Config config = new Config(OnePageCRMConstants.CONNECTOR_NAME, request.getCsvRowLimit(),
+                        request.getThreadPoolSize(), OnePageCRMConstants.excludedEntities,
+                        OnePageCRMConstants.BASE_API_URL, request.getAccessToken());
+
+                Connector connector = new OnePageCRMConnector(connection, config, request.getOutputPath());
+
+                // Build per-entity pagination map (all entities share the same pagination for now)
+                PaginationInfo pagination = connection.buildPagination(100);
+                Map<String, PaginationInfo> paginationByEntity = new HashMap<>();
+
+                Map<String, String> queryParams;
+                if (Objects.isNull(request.getLastSyncDate())) {
+                    queryParams = Map.of();
+                    OnePageCRMConstants.HEADERS_BY_ENTITY
+                            .keySet()
+                            .forEach(entity -> paginationByEntity.put(entity, pagination));
+                    connector.run(
+                            OnePageCRMConstants.HEADERS_BY_ENTITY,
+                            queryParams,
+                            Map.of(),
+                            OnePageCRMConstants.getEntityApiPathMap(),
+                            Map.of(),
+                            paginationByEntity
+                                 );
+                } else {
+                    LocalDateTime startDate = LocalDateTime.parse(request.getLastSyncDate());
+                    queryParams = Map.of("since", startDate.toString());
+                    OnePageCRMConstants.DELTA_HEADERS_BY_ENTITY
+                            .keySet()
+                            .forEach(entity -> paginationByEntity.put(entity, pagination));
+                    OnePageCRMConstants.NON_DELTA_HEADERS_BY_ENTITY
+                            .keySet()
+                            .forEach(entity -> paginationByEntity.put(entity, pagination));
+                    connector.run(
+                            OnePageCRMConstants.DELTA_HEADERS_BY_ENTITY,
+                            queryParams, Map.of(), OnePageCRMConstants.getEntityApiPathMap(),
+                            Map.of(), paginationByEntity);
+                    connector.run(
+                            OnePageCRMConstants.NON_DELTA_HEADERS_BY_ENTITY,
+                            Map.of(), Map.of(), OnePageCRMConstants.getEntityApiPathMap(),
+                            Map.of(), paginationByEntity);
+                }
+
+                return "OnePageCRM Connector completed successfully!";
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                return "Error running OnePageCRM Connector: " + e.getMessage();
+            }
         } else {
             System.out.println("Connector not supported");
         }
         return "Connector " + request.getConnectorName() + " Started!";
     }
 }
-

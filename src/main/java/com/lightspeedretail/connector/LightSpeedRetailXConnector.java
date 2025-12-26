@@ -9,6 +9,7 @@ import com.lightspeedretail.common.LightSpeedRetailXConstants;
 import io.datalakehouse.config.Config;
 import io.datalakehouse.connectors.core.ConnectionTypeOptions;
 import io.datalakehouse.connectors.core.Connector;
+import com.lightspeedretail.common.MD5Helper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
@@ -102,7 +103,7 @@ public class LightSpeedRetailXConnector extends Connector {
             Instant current_ts = Instant.now();
             for (String header : headers) {
                 switch (header) {
-                    case "__ROW_MD5" -> rowValues.add("MD5");
+                    case "__ROW_MD5" -> rowValues.add(MD5Helper.getMD5FromArguments(rowValues.toArray(new String[0])));
                     case "__DLH_IS_DELETED" -> rowValues.add("false");
                     case "__DLH_IS_ACTIVE" -> rowValues.add("true");
                     default -> {

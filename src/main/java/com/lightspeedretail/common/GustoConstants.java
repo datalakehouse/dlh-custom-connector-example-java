@@ -151,6 +151,30 @@ public class GustoConstants {
             Map.entry(GustoEntityNames.PAY_PERIODS, GustoHeaders.PAY_PERIODS)
     );
 
+    public static final Map<String, String[]> NON_DELTA_HEADERS_BY_ENTITY = Map.ofEntries(
+            Map.entry(GustoEntityNames.COMPANY, GustoHeaders.COMPANY),
+            Map.entry(GustoEntityNames.COMPANY_ADMINS, GustoHeaders.COMPANY_ADMINS),
+            Map.entry(GustoEntityNames.COMPANY_LOCATIONS, GustoHeaders.COMPANY_LOCATIONS),
+            Map.entry(GustoEntityNames.PAY_SCHEDULES, GustoHeaders.PAY_SCHEDULES),
+            Map.entry(GustoEntityNames.PAYROLLS, GustoHeaders.PAYROLLS),
+            Map.entry(GustoEntityNames.EMPLOYEES, GustoHeaders.EMPLOYEES),
+            Map.entry(GustoEntityNames.BENEFITS, GustoHeaders.BENEFITS),
+            Map.entry(GustoEntityNames.DEPARTMENTS, GustoHeaders.DEPARTMENTS),
+            Map.entry(GustoEntityNames.TIMESHEETS, GustoHeaders.TIMESHEETS),
+            Map.entry(GustoEntityNames.CONTRACTORS, GustoHeaders.CONTRACTORS),
+            Map.entry(GustoEntityNames.EMPLOYEE_HOME_ADDRESSES, GustoHeaders.EMPLOYEE_HOME_ADDRESSES),
+            Map.entry(GustoEntityNames.EMPLOYEE_WORK_ADDRESSES, GustoHeaders.EMPLOYEE_WORK_ADDRESSES),
+            Map.entry(GustoEntityNames.JOBS, GustoHeaders.JOBS),
+            Map.entry(GustoEntityNames.GARNISHMENTS, GustoHeaders.GARNISHMENTS),
+            Map.entry(GustoEntityNames.EMPLOYEE_BENEFITS, GustoHeaders.EMPLOYEE_BENEFITS),
+            Map.entry(GustoEntityNames.JOBS_COMPENSATIONS, GustoHeaders.JOBS_COMPENSATIONS),
+            Map.entry(GustoEntityNames.PAY_SCHEDULES_ASSIGNMENTS, GustoHeaders.PAY_SCHEDULES_ASSIGNMENTS),
+            Map.entry(GustoEntityNames.EMPLOYEE_TERMINATIONS, GustoHeaders.EMPLOYEE_TERMINATIONS),
+            Map.entry(GustoEntityNames.RECURRING_REIMBURSEMENTS, GustoHeaders.RECURRING_REIMBURSEMENTS),
+            Map.entry(GustoEntityNames.LOCATIONS_MINIMUM_WAGES, GustoHeaders.LOCATIONS_MINIMUM_WAGES),
+            Map.entry(GustoEntityNames.COMPANY_BENEFITS, GustoHeaders.COMPANY_BENEFITS)
+    );
+
 
     public static Map<String, String> ENTITY_API_PATH_MAP = new HashMap<>();
 
