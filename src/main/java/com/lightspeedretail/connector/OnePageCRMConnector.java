@@ -7,12 +7,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lightspeedretail.common.CoreCustomConstants;
 import com.lightspeedretail.common.GustoConstants;
 import com.lightspeedretail.common.OnePageCRMConstants;
+import com.lightspeedretail.utils.ConnectorHelper;
 import io.datalakehouse.common.JsonUtils;
 import io.datalakehouse.config.Config;
 import io.datalakehouse.connectors.core.ConnectionType;
 import io.datalakehouse.connectors.core.Connector;
 import io.datalakehouse.connectors.core.PaginationInfo;
-import com.lightspeedretail.common.MD5Helper;
+import com.lightspeedretail.utils.MD5Helper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
@@ -197,7 +198,7 @@ public class OnePageCRMConnector extends Connector {
                         // Process each record from this page
                         for (JsonNode recordNode : dataNode) {
                             List<String> rowValues = mapValues(recordNode, allHeaders);
-                            String idValue = getValueForHeader(allHeaders, rowValues, GustoConstants.ID_HEADERS);
+                            String idValue = ConnectorHelper.getValueForHeader(allHeaders, rowValues, GustoConstants.ID_HEADERS);
 
                             if (idValue != null) {
                                 allEntityIds.add(idValue);
@@ -281,7 +282,7 @@ public class OnePageCRMConnector extends Connector {
                     // Process each record (already unwrapped)
                     for (JsonNode recordNode : dataNode) {
                         List<String> rowValues = mapValues(recordNode, allHeaders);
-                        String idValue = getValueForHeader(allHeaders, rowValues, GustoConstants.ID_HEADERS);
+                        String idValue = ConnectorHelper.getValueForHeader(allHeaders, rowValues, GustoConstants.ID_HEADERS);
 
                         if (idValue != null) {
                             entityIds.add(idValue);
@@ -344,7 +345,7 @@ public class OnePageCRMConnector extends Connector {
                         continue;
                     }
 
-                    JsonNode valueNode = resolveValue(recordNode, fieldMap, header);
+                    JsonNode valueNode = ConnectorHelper.resolveValue(recordNode, fieldMap, header);
 
                     if (valueNode == null || valueNode.isNull()) {
                         rowValues.add("");
@@ -439,40 +440,6 @@ public class OnePageCRMConnector extends Connector {
 
         // Return concatenated address parts or empty string
         return addressParts.isEmpty() ? "" : String.join(", ", addressParts);
-    }
-
-    private JsonNode resolveValue(
-            JsonNode recordNode,
-            Map<String, JsonNode> fieldMap,
-            String header) {
-
-        String key = header.toLowerCase();
-
-        // 1. Fast flat lookup
-        if (fieldMap.containsKey(key)) {
-            return fieldMap.get(key);
-        }
-
-        // 2. Nested resolution ONLY if flat not found
-        if (key.contains("_")) {
-            return JsonUtils.findNestedValue(recordNode, key);
-        }
-
-        return null;
-    }
-
-    public static String getValueForHeader(List<String> allHeaders, List<String> rowValues, String... headerNames) {
-        if (allHeaders == null || rowValues == null || headerNames == null) {
-            return null;
-        }
-        for (String headerName : headerNames) {
-            if (headerName == null) continue;
-            int index = allHeaders.indexOf(headerName);
-            if (index != -1 && index < rowValues.size()) {
-                return rowValues.get(index);
-            }
-        }
-        return null; // no matching header found or index out of bounds
     }
 
 }
