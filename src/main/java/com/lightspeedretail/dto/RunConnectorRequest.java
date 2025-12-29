@@ -3,6 +3,7 @@ package com.lightspeedretail.dto;
 import io.datalakehouse.connectors.core.ConnectionTypeOptions;
 
 public class RunConnectorRequest {
+
     private String connectorName;
     private ConnectionTypeOptions connectorType;
     private int csvRowLimit;
@@ -12,6 +13,8 @@ public class RunConnectorRequest {
     private String environment;
     private String accessToken;
     private String lastSyncDate;
+
+    private String baseUrl;
 
     // OAuth2 fields for refresh token
     private String clientId;
@@ -151,5 +154,13 @@ public class RunConnectorRequest {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getBaseUrl() {
+        return baseUrl;
+    }
+
+    public void setBaseUrl(String baseUrl) {
+        this.baseUrl = baseUrl;
     }
 }

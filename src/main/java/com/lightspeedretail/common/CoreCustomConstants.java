@@ -4,7 +4,7 @@ import java.util.Set;
 
 public class CoreCustomConstants {
     public enum HISTORY_ENTITY_TYPE {
-        LIGHTSPEED_RETAIL_X_ENTITY, GUSTO_ENTITY, ONE_PAGE_CRM_ENTITY
+        LIGHTSPEED_RETAIL_X_ENTITY, GUSTO_ENTITY, ONE_PAGE_CRM_ENTITY, FRESHDESK_ENTITY
     }
 
     public static final Set<String> DLH_TS_COLUMNS = Set.of(
