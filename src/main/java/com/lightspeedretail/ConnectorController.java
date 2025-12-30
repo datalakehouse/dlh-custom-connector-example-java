@@ -1,12 +1,15 @@
 package com.lightspeedretail;
 
+import com.lightspeedretail.common.FreshDeskConstants;
 import com.lightspeedretail.common.GustoConstants;
 import com.lightspeedretail.common.LightSpeedRetailXConstants;
 import com.lightspeedretail.common.OnePageCRMConstants;
+import com.lightspeedretail.connector.FreshDeskConnector;
 import com.lightspeedretail.connector.GustoConnector;
 import com.lightspeedretail.connector.LightSpeedRetailXConnector;
 import com.lightspeedretail.connector.OnePageCRMConnector;
 import com.lightspeedretail.dto.RunConnectorRequest;
+import com.lightspeedretail.restconnection.FreshDeskRestConnectionType;
 import com.lightspeedretail.restconnection.GustoRestConnectionType;
 import com.lightspeedretail.restconnection.OnePageCRMRestConnectionType;
 import com.lightspeedretail.service.GustoService;
@@ -175,6 +178,53 @@ public class ConnectorController {
             } catch (Exception e) {
                 e.printStackTrace();
                 return "Error running OnePageCRM Connector: " + e.getMessage();
+            }
+        } else if (null != request.getConnectorName() &&
+                request.getConnectorName().equals(FreshDeskConstants.CONNECTOR_NAME)) {
+            
+            try {
+                // Build FreshDesk API base URL from domain
+                String baseUrl = request.getBaseUrl();
+
+                // Create connection with Basic Authentication
+                FreshDeskRestConnectionType connection;
+                if (request.getUsername() != null && !request.getUsername().isBlank() &&
+                           request.getPassword() != null && !request.getPassword().isBlank()) {
+
+                    connection = new FreshDeskRestConnectionType(baseUrl, request.getUsername(), request.getPassword());
+                } else {
+                    return "Error: FreshDesk requires username/password";
+                }
+
+                // Create configuration
+                Config config = new Config(
+                        FreshDeskConstants.CONNECTOR_NAME,
+                        request.getCsvRowLimit(),
+                        request.getThreadPoolSize(),
+                        FreshDeskConstants.excludedEntities,
+                        baseUrl,
+                        request.getAccessToken() != null ? request.getAccessToken() : ""
+                );
+
+                // Create connector
+                Connector freshdeskConnector = new FreshDeskConnector(connection, config, request.getOutputPath());
+
+                if (Objects.isNull(request.getLastSyncDate())) {
+                    freshdeskConnector.run(FreshDeskConstants.HEADERS_BY_ENTITY, Map.of(), Map.of(), FreshDeskConstants.getEntityApiPathMap(), FreshDeskConstants.ENTITY_DEPENDENCY_MAP);
+                } else {
+                    LocalDateTime lastSyncDate = LocalDateTime.parse(request.getLastSyncDate());
+                    Map<String, String> queryParams = Map.of("updated_since", lastSyncDate.toString());
+                    freshdeskConnector.run(FreshDeskConstants.DELTA_HEADERS_BY_ENTITY, queryParams, Map.of(), FreshDeskConstants.getEntityApiPathMap(), FreshDeskConstants.ENTITY_DEPENDENCY_MAP);
+                    freshdeskConnector.run(FreshDeskConstants.NON_DELTA_HEADERS_BY_ENTITY, Map.of(), Map.of(), FreshDeskConstants.getEntityApiPathMap(), FreshDeskConstants.ENTITY_DEPENDENCY_MAP);
+                }
+
+                return "FreshDesk Connector completed successfully!";
+
+            } catch (DateTimeException dte) {
+                return "Error: Invalid date format for lastSyncDate. Expected format: YYYY-MM-DDTHH:MM:SSZ";
+            } catch (Exception e) {
+                e.printStackTrace();
+                return "Error running FreshDesk Connector: " + e.getMessage();
             }
         } else {
             System.out.println("Connector not supported");

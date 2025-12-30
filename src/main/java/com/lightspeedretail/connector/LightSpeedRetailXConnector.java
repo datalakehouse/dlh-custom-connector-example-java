@@ -9,7 +9,7 @@ import com.lightspeedretail.common.LightSpeedRetailXConstants;
 import io.datalakehouse.config.Config;
 import io.datalakehouse.connectors.core.ConnectionTypeOptions;
 import io.datalakehouse.connectors.core.Connector;
-import com.lightspeedretail.common.MD5Helper;
+import com.lightspeedretail.utils.MD5Helper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;

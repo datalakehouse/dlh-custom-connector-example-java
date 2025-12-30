@@ -24,7 +24,7 @@
 * 
 |**********************************************************************;
 */
-package com.lightspeedretail.common;
+package com.lightspeedretail.utils;
 
 import java.math.BigInteger;
 import java.security.MessageDigest;
