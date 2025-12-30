@@ -7,18 +7,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lightspeedretail.common.CoreCustomConstants;
 import com.lightspeedretail.common.FreshDeskConstants;
 import com.lightspeedretail.utils.ConnectorHelper;
-import com.lightspeedretail.utils.MD5Helper;
-import io.datalakehouse.common.JsonUtils;
 import io.datalakehouse.config.Config;
 import io.datalakehouse.connectors.core.ConnectionType;
 import io.datalakehouse.connectors.core.Connector;
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class FreshDeskConnector extends Connector {
 
