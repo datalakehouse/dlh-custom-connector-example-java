@@ -108,6 +108,7 @@ public class FreshServicesConnector extends Connector {
 
             // Process and accumulate data with timestamp filtering
             for (JsonNode record : dataArray) {
+//                Note: Delta sync based on timestamp fields which we are not using so commenting this part
 //                // Apply timestamp filtering if lastSyncDate is set
 //                if (!shouldIncludeRecord(record, headers)) {
 //                    continue; // Skip this record
@@ -251,6 +252,7 @@ public class FreshServicesConnector extends Connector {
 //        int filteredCount = 0;
 
         for (JsonNode record : dataArray) {
+//                Note: Delta sync based on timestamp fields which we are not using so commenting this part
 //            // Apply timestamp filtering if lastSyncDate is set
 //            if (!shouldIncludeRecord(record, headers)) {
 //                filteredCount++;
