@@ -15,6 +15,7 @@ public class RunConnectorRequest {
     private String lastSyncDate;
 
     private String baseUrl;
+    private String authUrl;
 
     // OAuth2 fields for refresh token
     private String clientId;
@@ -162,5 +163,13 @@ public class RunConnectorRequest {
 
     public void setBaseUrl(String baseUrl) {
         this.baseUrl = baseUrl;
+    }
+
+    public String getAuthUrl() {
+        return authUrl;
+    }
+
+    public void setAuthUrl(String authurl) {
+        this.authUrl = authurl;
     }
 }

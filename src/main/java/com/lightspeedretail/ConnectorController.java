@@ -1,15 +1,18 @@
 package com.lightspeedretail;
 
 import com.lightspeedretail.common.FreshDeskConstants;
+import com.lightspeedretail.common.FreshServiceConstants;
 import com.lightspeedretail.common.GustoConstants;
 import com.lightspeedretail.common.LightSpeedRetailXConstants;
 import com.lightspeedretail.common.OnePageCRMConstants;
 import com.lightspeedretail.connector.FreshDeskConnector;
+import com.lightspeedretail.connector.FreshServicesConnector;
 import com.lightspeedretail.connector.GustoConnector;
 import com.lightspeedretail.connector.LightSpeedRetailXConnector;
 import com.lightspeedretail.connector.OnePageCRMConnector;
 import com.lightspeedretail.dto.RunConnectorRequest;
 import com.lightspeedretail.restconnection.FreshDeskRestConnectionType;
+import com.lightspeedretail.restconnection.FreshServiceRestConnectionType;
 import com.lightspeedretail.restconnection.GustoRestConnectionType;
 import com.lightspeedretail.restconnection.OnePageCRMRestConnectionType;
 import com.lightspeedretail.service.GustoService;
@@ -17,8 +20,10 @@ import io.datalakehouse.config.Config;
 import io.datalakehouse.connectors.core.Connector;
 import io.datalakehouse.connectors.core.PaginationInfo;
 import java.time.DateTimeException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -226,6 +231,56 @@ public class ConnectorController {
                 e.printStackTrace();
                 return "Error running FreshDesk Connector: " + e.getMessage();
             }
+        } else if (null != request.getConnectorName() &&
+                request.getConnectorName().equals(FreshServiceConstants.CONNECTOR_NAME)) {
+
+            try {
+                // Build FreshService API base URL from domain
+                String baseUrl = request.getBaseUrl();
+
+                Config config = new Config(
+                        FreshServiceConstants.CONNECTOR_NAME, request.getCsvRowLimit(), request.getThreadPoolSize(),
+                        FreshServiceConstants.excludedEntities, baseUrl, request.getAccessToken());
+
+                FreshServiceRestConnectionType freshServicesConnection = new FreshServiceRestConnectionType(
+                        baseUrl, request.getAccessToken(), request.getClientId(), request.getClientSecret(),
+                        request.getRefreshToken(), request.getRedirectUri(), request.getAuthorizationCode(), request.getAuthUrl());
+
+                if (Objects.isNull(request.getLastSyncDate())) {
+                    // Full sync - process all entities with dependencies
+                    FreshServicesConnector freshServicesConnector =
+                            new FreshServicesConnector(freshServicesConnection, config, request.getOutputPath());
+
+                    freshServicesConnector.run(FreshServiceConstants.HEADERS_BY_ENTITY, Map.of(), Map.of(),
+                            FreshServiceConstants.getEntityApiPathMap(), FreshServiceConstants.ENTITY_DEPENDENCY_MAP);
+                } else {
+                    // Delta sync - process only changed records
+                    Instant lastSyncDate = Instant.parse(request.getLastSyncDate());
+                    Map<String, String> queryParams = Map.of("updated_since", lastSyncDate.toString());
+
+                    // Create connector instance with lastSyncDate for timestamp filtering
+                    FreshServicesConnector freshServicesConnector =
+                            new FreshServicesConnector(freshServicesConnection, config, request.getOutputPath(), lastSyncDate);
+
+                    // Process delta entities with updated_since parameter
+                    freshServicesConnector.run(FreshServiceConstants.DELTA_HEADERS_BY_ENTITY, queryParams, Map.of(),
+                            FreshServiceConstants.getEntityApiPathMap(), Map.of());
+
+//                     Process non-delta entities without updated_since parameter
+//                     Timestamp filtering will be applied in-memory based on CREATED_AT/UPDATED_AT fields
+                    freshServicesConnector.run(FreshServiceConstants.NON_DELTA_HEADERS_BY_ENTITY, Map.of(), Map.of(),
+                            FreshServiceConstants.getEntityApiPathMap(), FreshServiceConstants.ENTITY_DEPENDENCY_MAP);
+                }
+
+                return "FreshService Connector completed successfully!";
+
+            } catch (DateTimeParseException dte) {
+                return "Error: Invalid date format for lastSyncDate. Expected format: YYYY-MM-DDTHH:MM:SSZ";
+            } catch (Exception e) {
+                e.printStackTrace();
+                return "Error running FreshService Connector: " + e.getMessage();
+            }
+
         } else {
             System.out.println("Connector not supported");
         }
