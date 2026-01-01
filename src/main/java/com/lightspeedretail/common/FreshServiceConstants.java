@@ -1,5 +1,8 @@
 package com.lightspeedretail.common;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -8,8 +11,72 @@ import java.util.Map;
 public class FreshServiceConstants {
 
     public static final String CONNECTOR_NAME = "FRESHSERVICES";
-    public static final String REQUIRED_SCOPES = "freshservice.agents.roles.view freshservice.tickets.fields.manage freshservice.tickets.view freshservice.tickets.time_entries.view freshservice.tickets.edit freshservice.tickets.tasks.view freshservice.tickets.conversations.view freshservice.problems.view freshservice.problems.fields.view freshservice.problems.notes.view freshservice.problems.time_entries.view freshservice.problems.tasks.view freshservice.changes.view freshservice.changes.edit freshservice.changes.notes.view freshservice.changes.time_entries.view freshservice.changes.tasks.view freshservice.releases.view freshservice.releases.notes.view freshservice.releases.time_entries.view freshservice.releases.tasks.view freshservice.workspaces.view freshservice.requesters.view freshservice.requesters.fields.view freshservice.agents.manage freshservice.agents.fields.view freshservice.agentgroups.manage freshservice.locations.view freshservice.products.view freshservice.vendors.view freshservice.assets.view freshservice.purchase_orders.view freshservice.assets.manage freshservice.contract_types.view freshservice.contracts.view freshservice.departments.view freshservice.departments.fields.view freshservice.business_hours.view freshservice.projects.view freshservice.projects.fields.view freshservice.projects.manage freshservice.solutions.view freshservice.service_catalog.edit freshservice.announcements.view freshservice.onboarding_requests.view freshservice.offboarding_requests.view freshservice.oncall.view freshservice.objects.manage freshservice.pir_template.manage freshservice.sla_policies.view freshservice.canned_responses.view";
     public static final String API_BASE_PATH = "api/v2/";
+    public static final String[] ID_HEADERS = {"DISPLAY_ID", "ID"};
+    //
+/*
+    // This section is commented out as we are not using the delta sync based on timestamp fields.
+    public static final String[] TIMESTAMP_FIELDS = {"UPDATED_AT", "CREATED_AT"};
+    public static final DateTimeFormatter[] DATE_FORMATTERS = {
+            DateTimeFormatter.ISO_DATE_TIME,
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"),
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX")
+    };*/
+
+    public static final List<String> REQUIRED_SCOPES = List.of(
+            "freshservice.agents.roles.view",
+            "freshservice.tickets.fields.manage",
+            "freshservice.tickets.view",
+            "freshservice.tickets.time_entries.view",
+            "freshservice.tickets.edit",
+            "freshservice.tickets.tasks.view",
+            "freshservice.tickets.conversations.view",
+            "freshservice.problems.view",
+            "freshservice.problems.fields.view",
+            "freshservice.problems.notes.view",
+            "freshservice.problems.time_entries.view",
+            "freshservice.problems.tasks.view",
+            "freshservice.changes.view",
+            "freshservice.changes.edit",
+            "freshservice.changes.notes.view",
+            "freshservice.changes.time_entries.view",
+            "freshservice.changes.tasks.view",
+            "freshservice.releases.view",
+            "freshservice.releases.notes.view",
+            "freshservice.releases.time_entries.view",
+            "freshservice.releases.tasks.view",
+            "freshservice.workspaces.view",
+            "freshservice.requesters.view",
+            "freshservice.requesters.fields.view",
+            "freshservice.agents.manage",
+            "freshservice.agents.fields.view",
+            "freshservice.agentgroups.manage",
+            "freshservice.locations.view",
+            "freshservice.products.view",
+            "freshservice.vendors.view",
+            "freshservice.assets.view",
+            "freshservice.assets.manage",
+            "freshservice.purchase_orders.view",
+            "freshservice.contract_types.view",
+            "freshservice.contracts.view",
+            "freshservice.departments.view",
+            "freshservice.departments.fields.view",
+            "freshservice.business_hours.view",
+            "freshservice.projects.view",
+            "freshservice.projects.fields.view",
+            "freshservice.projects.manage",
+            "freshservice.solutions.view",
+            "freshservice.service_catalog.edit",
+            "freshservice.announcements.view",
+            "freshservice.onboarding_requests.view",
+            "freshservice.offboarding_requests.view",
+            "freshservice.oncall.view",
+            "freshservice.objects.manage",
+            "freshservice.pir_template.manage",
+            "freshservice.sla_policies.view",
+            "freshservice.canned_responses.view"
+    );
 
     public static final class FreshServiceEntityNames {
         public static final String AGENT_FIELDS = "AGENT_FIELDS";
@@ -287,6 +354,7 @@ public class FreshServiceConstants {
             Map.entry(FreshServiceEntityNames.VENDORS, FreshServiceHeaders.VENDORS),
             Map.entry(FreshServiceEntityNames.WORKSPACES, FreshServiceHeaders.WORKSPACES)
 
+            // Tried to include below entities but they are causing issues mentioned in dev notes,will revisited later.
 //            Map.entry(FreshServiceEntityNames.SOLUTION_ARTICLES, FreshServiceHeaders.SOLUTION_ARTICLES),
 //            Map.entry(FreshServiceEntityNames.SOLUTION_FOLDERS, FreshServiceHeaders.SOLUTION_FOLDERS),
 //        Map.entry(FreshServiceEntityNames.JOURNEY_REQUEST_ACTIVITIES, FreshServiceHeaders.JOURNEY_REQUEST_ACTIVITIES),

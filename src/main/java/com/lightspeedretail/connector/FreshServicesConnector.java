@@ -10,12 +10,9 @@ import com.lightspeedretail.utils.ConnectorHelper;
 import io.datalakehouse.config.Config;
 import io.datalakehouse.connectors.core.ConnectionType;
 import io.datalakehouse.connectors.core.Connector;
-
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,27 +27,19 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class FreshServicesConnector extends Connector {
 
-    private static final String[] ID_HEADERS = {"DISPLAY_ID", "ID"};
-    private static final String[] TIMESTAMP_FIELDS = {"UPDATED_AT", "CREATED_AT"};
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final DateTimeFormatter[] DATE_FORMATTERS = {
-        DateTimeFormatter.ISO_DATE_TIME,
-        DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"),
-        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
-        DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX")
-    };
 
     // Thread-safe accumulator for CSV data across multiple parent IDs
     private final ConcurrentHashMap<String, CsvDataBuffer> csvDataBufferConcurrentHashMap = new ConcurrentHashMap<>();
 
     // Last sync date for filtering non-delta entities
-    private final LocalDateTime lastSyncDate;
+    private final Instant lastSyncDate;
 
     public FreshServicesConnector(ConnectionType connectionType, Config config, String outputPath) {
         this(connectionType, config, outputPath, null);
     }
 
-    public FreshServicesConnector(ConnectionType connectionType, Config config, String outputPath, LocalDateTime lastSyncDate) {
+    public FreshServicesConnector(ConnectionType connectionType, Config config, String outputPath, Instant lastSyncDate) {
         super(connectionType, config, outputPath);
         this.lastSyncDate = lastSyncDate;
     }
@@ -134,7 +123,7 @@ public class FreshServicesConnector extends Connector {
                     }
                 }
 
-                String idValue = ConnectorHelper.getValueForHeader(headers, rowValues, ID_HEADERS);
+                String idValue = ConnectorHelper.getValueForHeader(headers, rowValues, FreshServiceConstants.ID_HEADERS);
                 if (idValue != null) {
                     entityIds.add(idValue);
                 }
@@ -183,11 +172,13 @@ public class FreshServicesConnector extends Connector {
         return entityIds;
     }
 
-    /**
+/*
+* Note : This methods are for delta sync filtering based on timestamp fields which is not useful for now
+* *//**
      * Checks if a record should be included based on timestamp filtering.
      * Returns true if no lastSyncDate is set (full sync) or if the record was created/updated after lastSyncDate.
      * If no timestamp headers exist in the entity, returns true (include all records).
-     */
+     *//*
     private boolean shouldIncludeRecord(JsonNode record, List<String> headers) {
         if (lastSyncDate == null) {
             return true; // No filtering, include all records
@@ -195,7 +186,7 @@ public class FreshServicesConnector extends Connector {
 
         // Check if entity has any timestamp fields
         boolean hasTimestampFields = false;
-        for (String timestampField : TIMESTAMP_FIELDS) {
+        for (String timestampField : FreshServiceConstants.TIMESTAMP_FIELDS) {
             if (headers.contains(timestampField)) {
                 hasTimestampFields = true;
                 break;
@@ -208,7 +199,7 @@ public class FreshServicesConnector extends Connector {
         }
 
         // Check UPDATED_AT and CREATED_AT fields
-        for (String timestampField : TIMESTAMP_FIELDS) {
+        for (String timestampField : FreshServiceConstants.TIMESTAMP_FIELDS) {
             if (headers.contains(timestampField)) {
                 JsonNode timestampNode = record.get(timestampField.toLowerCase());
                 if (timestampNode == null) {
@@ -217,7 +208,7 @@ public class FreshServicesConnector extends Connector {
 
                 if (timestampNode != null && !timestampNode.isNull()) {
                     String timestampStr = timestampNode.asText();
-                    LocalDateTime recordTimestamp = parseTimestamp(timestampStr);
+                    Instant recordTimestamp = parseTimestamp(timestampStr);
 
                     if (recordTimestamp != null && recordTimestamp.isAfter(lastSyncDate)) {
                         return true; // Record was created/updated after lastSyncDate
@@ -230,15 +221,15 @@ public class FreshServicesConnector extends Connector {
         return false;
     }
 
-    /**
+    *//**
      * Parses timestamp string using multiple formats.
-     */
-    private LocalDateTime parseTimestamp(String timestampStr) {
+     *//*
+    private Instant parseTimestamp(String timestampStr) {
         if (timestampStr == null || timestampStr.trim().isEmpty()) {
             return null;
         }
 
-        for (DateTimeFormatter formatter : DATE_FORMATTERS) {
+        for (DateTimeFormatter formatter : FreshServiceConstants.DATE_FORMATTERS) {
             try {
                 return LocalDateTime.parse(timestampStr, formatter);
             } catch (DateTimeParseException e) {
@@ -248,7 +239,7 @@ public class FreshServicesConnector extends Connector {
 
         System.err.println("Warning: Could not parse timestamp: " + timestampStr);
         return null;
-    }
+    }*/
 
     /**
      * Processes all records in the data array with timestamp filtering support
@@ -276,7 +267,7 @@ public class FreshServicesConnector extends Connector {
                 }
             }
 
-            String idValue = ConnectorHelper.getValueForHeader(headers, rowValues, ID_HEADERS);
+            String idValue = ConnectorHelper.getValueForHeader(headers, rowValues, FreshServiceConstants.ID_HEADERS);
 
             if (idValue != null) {
                 entityIds.add(idValue);

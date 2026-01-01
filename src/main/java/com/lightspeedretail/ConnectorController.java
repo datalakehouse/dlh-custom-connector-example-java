@@ -20,8 +20,10 @@ import io.datalakehouse.config.Config;
 import io.datalakehouse.connectors.core.Connector;
 import io.datalakehouse.connectors.core.PaginationInfo;
 import java.time.DateTimeException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -253,7 +255,7 @@ public class ConnectorController {
                             FreshServiceConstants.getEntityApiPathMap(), FreshServiceConstants.ENTITY_DEPENDENCY_MAP);
                 } else {
                     // Delta sync - process only changed records
-                    LocalDateTime lastSyncDate = LocalDateTime.parse(request.getLastSyncDate());
+                    Instant lastSyncDate = Instant.parse(request.getLastSyncDate());
                     Map<String, String> queryParams = Map.of("updated_since", lastSyncDate.toString());
 
                     // Create connector instance with lastSyncDate for timestamp filtering
@@ -272,7 +274,7 @@ public class ConnectorController {
 
                 return "FreshService Connector completed successfully!";
 
-            } catch (DateTimeException dte) {
+            } catch (DateTimeParseException dte) {
                 return "Error: Invalid date format for lastSyncDate. Expected format: YYYY-MM-DDTHH:MM:SSZ";
             } catch (Exception e) {
                 e.printStackTrace();
