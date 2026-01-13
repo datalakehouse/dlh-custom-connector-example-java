@@ -61,7 +61,7 @@ public class GustoRunner extends BaseRunner {
                     Map.of("start_date", startDate.toString(), "end_date", endDate.toString()));
 
             connector.run(GustoConstants.HEADERS_BY_ENTITY, queryParameterResolver, headers,
-                    GustoConstants.getEntityApiPathMap(companyId), GustoConstants.ENTITY_DEPENDENCY_MAP);
+                    GustoConstants.getEntityApiPathMap(companyId), GustoConstants.ENTITY_DEPENDENCY_MAP, Map.of());
 
         } else {
             Date startDate = Date.from(Instant.parse(request.getLastSyncDate()));
@@ -72,11 +72,12 @@ public class GustoRunner extends BaseRunner {
             queryParameterResolver.setParamValues(
                     Map.of("start_date", startDate.toString(), "end_date", endDate.toString()));
 
-            connector.run(GustoConstants.DELTA_HEADERS_BY_ENTITY, Map.of("start_date", startDate.toString()), headers,
-                    GustoConstants.getEntityApiPathMap(companyId), GustoConstants.ENTITY_DEPENDENCY_MAP);
+            connector.run(GustoConstants.DELTA_HEADERS_BY_ENTITY,
+                    new QueryParameterResolver(Map.of("start_date", startDate.toString())), headers,
+                    GustoConstants.getEntityApiPathMap(companyId), GustoConstants.ENTITY_DEPENDENCY_MAP, Map.of());
 
             connector.run(GustoConstants.NON_DELTA_HEADERS_BY_ENTITY, queryParameterResolver, headers,
-                    GustoConstants.getEntityApiPathMap(companyId), GustoConstants.ENTITY_DEPENDENCY_MAP);
+                    GustoConstants.getEntityApiPathMap(companyId), GustoConstants.ENTITY_DEPENDENCY_MAP, Map.of());
         }
     }
 
