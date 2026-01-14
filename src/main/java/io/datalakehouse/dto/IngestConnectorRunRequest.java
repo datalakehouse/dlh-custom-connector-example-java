@@ -13,6 +13,7 @@ public class IngestConnectorRunRequest {
     private String environment;
     private String accessToken;
     private String lastSyncDate;
+    private Boolean isHistorical;
 
     private String baseUrl;
     private String authUrl;
@@ -171,5 +172,13 @@ public class IngestConnectorRunRequest {
 
     public void setAuthUrl(String authurl) {
         this.authUrl = authurl;
+    }
+
+    public Boolean getIsHistorical() {
+        return isHistorical;
+    }
+
+    public void setIsHistorical(Boolean historical) {
+        this.isHistorical = historical;
     }
 }

@@ -59,8 +59,15 @@ public class ConnectorHelper {
      * Handles nested fields, arrays, objects, and special DLH columns.
      */
     public static List<String> mapValues(JsonNode recordNode, List<String> headers) {
+       return mapValues(recordNode, headers, new ArrayList<>());
+    }
+
+    /**
+     * Maps JSON node values to CSV row values based on headers.
+     * Handles nested fields, arrays, objects, and special DLH columns.
+     */
+    public static List<String> mapValues(JsonNode recordNode, List<String> headers, List<String> rowValues) {
         ObjectMapper mapper = new ObjectMapper();
-        List<String> rowValues = new ArrayList<>();
 
         // Build case-insensitive lookup map ONCE per record
         Map<String, JsonNode> fieldMap = new HashMap<>();
@@ -90,7 +97,10 @@ public class ConnectorHelper {
 
                     if (valueNode == null || valueNode.isNull()) {
                         rowValues.add("");
-                    } else if (valueNode.isArray() || valueNode.isObject()) {
+                    } else if (valueNode.isObject()) {
+                        JsonNode resolved = JsonUtils.findNestedValue(recordNode, header);
+                        rowValues.add(resolved == null || resolved.isNull() ? "" : resolved.isValueNode() ? resolved.asText() : resolved.toString());
+                    } else if (valueNode.isArray()) {
                         try {
                             rowValues.add(mapper.writeValueAsString(valueNode));
                         } catch (Exception e) {
