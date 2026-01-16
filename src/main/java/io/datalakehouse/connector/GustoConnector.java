@@ -236,13 +236,13 @@ public class GustoConnector extends DLHIngest {
         // Process employees mapping table
         processChildTable(rootNode, "employees", "employee_uuid", "EMPLOYEE_UUID",
                 GustoConstants.GustoEntityNames.EMPLOYEE_PAY_SCHEDULE_ASSIGNMENTS,
-                GustoConstants.GustoHeaders.EMPLOYEE_PAY_SCHEDULE_ASSIGNMENTS,
+                GustoConstants.GustoHeaders.EMPLOYEE_PAY_SCHEDULES_ASSIGNMENTS,
                 parentType, parentDefaultUuid, parentHourlyUuid, parentSalariedUuid, timestamp);
 
         // Process departments mapping table
         processChildTable(rootNode, "departments", "department_uuid", "DEPARTMENT_UUID",
                 GustoConstants.GustoEntityNames.DEPARTMENT_PAY_SCHEDULE_ASSIGNMENTS,
-                GustoConstants.GustoHeaders.DEPARTMENT_PAY_SCHEDULE_ASSIGNMENTS,
+                GustoConstants.GustoHeaders.DEPARTMENT_PAY_SCHEDULES_ASSIGNMENTS,
                 parentType, parentDefaultUuid, parentHourlyUuid, parentSalariedUuid, timestamp);
 
         return new ArrayList<>();
