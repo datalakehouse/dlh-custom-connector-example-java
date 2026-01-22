@@ -55,10 +55,6 @@ public class FreshServiceRestConnectionType extends RestConnectionType {
             formData.append("&redirect_uri=").append(URLEncoder.encode(redirectUri, StandardCharsets.UTF_8));
         }
 
-        if (authorizationCode != null && !authorizationCode.isEmpty()) {
-            formData.append("&code=").append(URLEncoder.encode(authorizationCode, StandardCharsets.UTF_8));
-        }
-
         post.setEntity(new StringEntity(formData.toString(), StandardCharsets.UTF_8));
         post.setHeader("Content-Type", "application/x-www-form-urlencoded");
         post.setHeader("Accept", "application/json");

@@ -116,5 +116,54 @@ public class ConnectorHelper {
         return rowValues;
     }
 
+    /**
+     * Sets DLH metadata header values in the row values list.
+     * Calculates MD5 based on non-DLH columns.
+     */
+    public static List<String> setDlhHeaderValues(List<String> headers, List<String> rowValues) {
+        if (headers == null || rowValues == null || headers.size() != rowValues.size()) {
+            return rowValues;
+        }
+
+        // First, collect non-DLH column values for MD5 calculation
+        List<String> nonDlhValues = new ArrayList<>();
+        for (int i = 0; i < headers.size(); i++) {
+            String header = headers.get(i);
+            if (!isDlhMetadataColumn(header)) {
+                nonDlhValues.add(rowValues.get(i));
+            }
+        }
+
+        // Calculate MD5 from non-DLH values
+        String md5Value = MD5Helper.getMD5FromArguments(nonDlhValues.toArray(new String[0]));
+
+        // Now set the DLH metadata column values at their correct indices
+        for (int i = 0; i < headers.size(); i++) {
+            String header = headers.get(i);
+            switch (header) {
+                case "__ROW_MD5" -> rowValues.set(i, md5Value);
+                case "__DLH_IS_DELETED" -> rowValues.set(i, "false");
+                case "__DLH_IS_ACTIVE" -> rowValues.set(i, "true");
+                default -> {
+                    if (CoreCustomConstants.DLH_TS_COLUMNS.contains(header)) {
+                        rowValues.set(i, Instant.now().toString());
+                    }
+                }
+            }
+        }
+
+        return rowValues;
+    }
+
+    /**
+     * Checks if a header is a DLH metadata column.
+     */
+    private static boolean isDlhMetadataColumn(String header) {
+        return header.equals("__ROW_MD5") ||
+                header.equals("__DLH_IS_DELETED") ||
+                header.equals("__DLH_IS_ACTIVE") ||
+                CoreCustomConstants.DLH_TS_COLUMNS.contains(header);
+    }
+
     private ConnectorHelper(){}
 }

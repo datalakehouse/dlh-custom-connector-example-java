@@ -22,6 +22,7 @@ public class CsvDataBuffer {
 
     private final String entity;
     private final int chunkSize;
+    private DownloadHelper downloadHelper;
     private volatile int lineCount = 0;
     private final String connectorType;
     private volatile boolean containsHeaderRow = false;
@@ -36,6 +37,7 @@ public class CsvDataBuffer {
     }
 
     public synchronized void addRowValues(String[] values, DownloadHelper downloadHelper) throws IOException {
+        this.downloadHelper = downloadHelper;
         rowValues.add(values);
         lineCount++;
         int rowValuesCount = containsHeaderRow ? rowValues.size() - 1 : rowValues.size();
@@ -48,6 +50,12 @@ public class CsvDataBuffer {
     }
 
     public synchronized void flushRemaining(DownloadHelper downloadHelper) throws IOException {
+        downloadHelper.writeChunkToCsv(entity, rowValues, lineCount, connectorType);
+        downloadHelper.logEndHistory(entity, connectorType, lineCount);
+        rowValues.clear();
+    }
+
+    public synchronized void flushRemaining() throws IOException {
         downloadHelper.writeChunkToCsv(entity, rowValues, lineCount, connectorType);
         downloadHelper.logEndHistory(entity, connectorType, lineCount);
         rowValues.clear();

@@ -39,7 +39,7 @@ public class FreshServiceRunner extends BaseRunner {
         if (!isDelta) {
             FreshServicesConnector connector = new FreshServicesConnector(conn, config, request.getOutputPath());
             connector.run(FreshServiceConstants.HEADERS_BY_ENTITY, Map.of(), Map.of(),
-                    FreshServiceConstants.getEntityApiPathMap(), FreshServiceConstants.ENTITY_DEPENDENCY_MAP);
+                    FreshServiceConstants.getEntityApiPathMap(), FreshServiceConstants.ENTITY_DEPENDENCY_MAP, Map.of());
             return;
         }
 
@@ -50,10 +50,10 @@ public class FreshServiceRunner extends BaseRunner {
 
         // Process delta entities with updated_since parameter
         connector.run(FreshServiceConstants.DELTA_HEADERS_BY_ENTITY, deltaQueryParams, Map.of(),
-                FreshServiceConstants.getEntityApiPathMap(), Map.of());
+                FreshServiceConstants.getEntityApiPathMap(), Map.of(), Map.of());
 
         // Process non-delta entities without updated_since parameter
         connector.run(FreshServiceConstants.NON_DELTA_HEADERS_BY_ENTITY, Map.of(), Map.of(),
-                FreshServiceConstants.getEntityApiPathMap(), FreshServiceConstants.ENTITY_DEPENDENCY_MAP);
+                FreshServiceConstants.getEntityApiPathMap(), FreshServiceConstants.ENTITY_DEPENDENCY_MAP,  Map.of());
     }
 }

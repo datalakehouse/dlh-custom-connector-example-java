@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.datalakehouse.common.CoreCustomConstants;
 import io.datalakehouse.common.GustoConstants;
 import io.datalakehouse.common.OnePageCRMConstants;
@@ -12,17 +13,18 @@ import io.datalakehouse.connectors.core.ConnectionType;
 import io.datalakehouse.connectors.core.DLHIngest;
 import io.datalakehouse.connectors.core.PaginationInfo;
 import io.datalakehouse.utils.ConnectorHelper;
-import io.datalakehouse.utils.MD5Helper;
+import io.datalakehouse.utils.CsvDataBuffer;
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class OnePageCRMConnector extends DLHIngest {
 
+    private final ConcurrentHashMap<String, CsvDataBuffer> csvDataBufferConcurrentHashMap = new ConcurrentHashMap<>();
+    ObjectMapper mapper = new ObjectMapper();
 
     public OnePageCRMConnector(ConnectionType connectionType, DLHIngestConfig config, String outputPath) {
         super(connectionType, config, outputPath);
@@ -66,8 +68,7 @@ public class OnePageCRMConnector extends DLHIngest {
      * 4. Try to unwrap records by singular name, if not wrapped add as-is
      */
     private JsonNode extractDataFromOnePageCRMResponse(JsonNode rootNode, String entity) {
-        ObjectMapper mapper = new ObjectMapper();
-        com.fasterxml.jackson.databind.node.ArrayNode aggregatedData = mapper.createArrayNode();
+        ArrayNode aggregatedData = mapper.createArrayNode();
 
         String pluralEntity = entity.toLowerCase().replace("-", "_").replace("/", "_");
         String singularEntity = OnePageCRMConstants.getSingularForm(pluralEntity);
@@ -170,9 +171,6 @@ public class OnePageCRMConnector extends DLHIngest {
             (pageStream, state) -> {
                 try {
 
-                    System.out.println("Processing page " + state.page() + " for entity: " + normalizedEntity);
-
-                    ObjectMapper mapper = new ObjectMapper();
                     JsonFactory factory = mapper.getFactory();
 
                     try (JsonParser parser = factory.createParser(pageStream)) {
@@ -196,11 +194,15 @@ public class OnePageCRMConnector extends DLHIngest {
 
                         // Process each record from this page
                         for (JsonNode recordNode : dataNode) {
-                            List<String> rowValues = mapValues(recordNode, allHeaders);
+                            List<String> rowValues = ConnectorHelper.mapValues(recordNode, allHeaders);
                             String idValue = ConnectorHelper.getValueForHeader(allHeaders, rowValues, GustoConstants.ID_HEADERS);
 
                             if (idValue != null) {
                                 allEntityIds.add(idValue);
+                            }
+
+                            if (normalizedEntity.equals(OnePageCRMConstants.OnePageCRMEntityNames.DEALS)) {
+                                processDeals(recordNode);
                             }
 
                             csvChunk.add(rowValues.toArray(new String[0]));
@@ -241,6 +243,9 @@ public class OnePageCRMConnector extends DLHIngest {
         downloadHelper.logEndHistory(normalizedEntity, CoreCustomConstants.HISTORY_ENTITY_TYPE.ONE_PAGE_CRM_ENTITY.name(), totalLineCount[0]);
         System.out.println("Completed entity " + normalizedEntity + " with " + totalLineCount[0] + " total records");
 
+        // Flush any remaining data in CSV buffers for nested entities (e.g., deal_items)
+        flushAllCsvBuffers();
+
         return allEntityIds;
     }
 
@@ -260,7 +265,6 @@ public class OnePageCRMConnector extends DLHIngest {
             csvChunk.add(allHeaders.toArray(new String[0]));
 
             if (stream != null) {
-                ObjectMapper mapper = new ObjectMapper();
                 JsonFactory factory = mapper.getFactory();
 
                 try (JsonParser parser = factory.createParser(stream)) {
@@ -280,11 +284,15 @@ public class OnePageCRMConnector extends DLHIngest {
 
                     // Process each record (already unwrapped)
                     for (JsonNode recordNode : dataNode) {
-                        List<String> rowValues = mapValues(recordNode, allHeaders);
+                        List<String> rowValues = ConnectorHelper.mapValues(recordNode, allHeaders);
                         String idValue = ConnectorHelper.getValueForHeader(allHeaders, rowValues, GustoConstants.ID_HEADERS);
 
                         if (idValue != null) {
                             entityIds.add(idValue);
+                        }
+
+                        if (entity.equals(OnePageCRMConstants.OnePageCRMEntityNames.DEALS)) {
+                            processDeals(recordNode);
                         }
 
                         csvChunk.add(rowValues.toArray(new String[0]));
@@ -309,6 +317,9 @@ public class OnePageCRMConnector extends DLHIngest {
                 downloadHelper.writeChunkToCsv(entity, csvChunk, lineCount, config.getConnectorType());
             }
 
+            // Flush any remaining data in CSV buffers for nested entities (e.g., deal_items)
+            flushAllCsvBuffers();
+
             return entityIds;
         } catch (IOException e) {
             e.printStackTrace();
@@ -316,129 +327,36 @@ public class OnePageCRMConnector extends DLHIngest {
         }
     }
 
-    public List<String> mapValues(JsonNode recordNode, List<String> headers) {
-        ObjectMapper mapper = new ObjectMapper();
-        List<String> rowValues = new ArrayList<>();
+    private void processDeals(JsonNode recordNode) throws IOException {
+        String entity = OnePageCRMConstants.OnePageCRMEntityNames.DEALS_ITEMS;
+        CsvDataBuffer csvDataBuffer = csvDataBufferConcurrentHashMap.computeIfAbsent(
+                entity,
+                k -> new CsvDataBuffer(OnePageCRMConstants.OnePageCRMHeaders.DEALS_ITEMS, config.getCsvRowLimit(),
+                        entity, config.getConnectorType())
+        );
 
-        // Build case-insensitive lookup map ONCE per record
-        Map<String, JsonNode> fieldMap = new HashMap<>();
-        if (recordNode.isObject()) {
-            var iterator = recordNode.fields();
-            while (iterator.hasNext()) {
-                var entry = iterator.next();
-                fieldMap.put(entry.getKey().toLowerCase(), entry.getValue());
-            }
-        } else {
-            System.out.println("WARNING: RecordNode is NOT an object! Type: " + recordNode.getNodeType());
-        }
-
-        for (String header : headers) {
-            switch (header) {
-                case "__ROW_MD5" -> rowValues.add(MD5Helper.getMD5FromArguments(rowValues.toArray(new String[0])));
-                case "__DLH_IS_DELETED" -> rowValues.add("false");
-                case "__DLH_IS_ACTIVE" -> rowValues.add("true");
-
-                default -> {
-                    if (CoreCustomConstants.DLH_TS_COLUMNS.contains(header)) {
-                        rowValues.add(Instant.now().toString());
-                        continue;
-                    }
-
-                    JsonNode valueNode = ConnectorHelper.resolveValue(recordNode, fieldMap, header);
-
-                    if (valueNode == null || valueNode.isNull()) {
-                        rowValues.add("");
-                    } else if (valueNode.isObject()) {
-                        // Special handling for nested objects like address
-                        String flattenedValue = flattenNestedObject(valueNode, header);
-                        rowValues.add(flattenedValue);
-                    } else if (valueNode.isArray()) {
-                        try {
-                            rowValues.add(mapper.writeValueAsString(valueNode));
-                        } catch (Exception e) {
-                            rowValues.add(valueNode.toString());
-                        }
-                    } else {
-                        rowValues.add(valueNode.asText());
-                    }
+        if (recordNode.has("deal_items")) {
+            JsonNode dealItemsNode = recordNode.get("deal_items");
+            if (dealItemsNode.isArray()) {
+                for (JsonNode itemNode : dealItemsNode) {
+                    List<String> rowValues = ConnectorHelper.mapValues(
+                            itemNode, List.of(OnePageCRMConstants.OnePageCRMHeaders.DEALS_ITEMS));
+                    csvDataBuffer.addRowValues(rowValues.toArray(new String[0]), downloadHelper);
                 }
             }
         }
-
-        return rowValues;
     }
 
     /**
-     * Flattens nested objects by extracting the sub-field that matches the header.
-     * For example, if header is "ADDRESS_CITY" and we have an address object,
-     * extract the "city" field from it.
-     *
-     * If the header matches a nested object exactly (e.g., "ADDRESS"),
-     * returns the first non-null sub-field value or concatenated values.
+     * Flushes all remaining data in CSV buffers for nested entities.
+     * This should be called after all entities and pages have been processed.
      */
-    private String flattenNestedObject(JsonNode objectNode, String header) {
-        // Check if header contains underscore indicating a sub-field
-        // e.g., ADDRESS_CITY, ADDRESS_STATE, etc.
-        if (header.contains("_")) {
-            String[] parts = header.split("_", 2);
-            if (parts.length == 2) {
-                String subField = parts[1].toLowerCase();
-
-                // Check if this nested object contains the sub-field
-                if (objectNode.has(subField)) {
-                    JsonNode subValue = objectNode.get(subField);
-                    if (subValue != null && !subValue.isNull()) {
-                        return subValue.asText();
-                    }
-                }
-            }
+    private void flushAllCsvBuffers() throws IOException {
+        for (Map.Entry<String, CsvDataBuffer> entry : csvDataBufferConcurrentHashMap.entrySet()) {
+            CsvDataBuffer buffer = entry.getValue();
+            buffer.flushRemaining(downloadHelper);
         }
-
-        // If header exactly matches "ADDRESS" and it's a nested object
-        // Try to extract sub-fields in order of preference
-        if ("ADDRESS".equalsIgnoreCase(header)) {
-            return extractAddressFields(objectNode);
-        }
-
-        // For other nested objects, try to find a meaningful value
-        // Return first non-null field value
-        var iterator = objectNode.fields();
-        while (iterator.hasNext()) {
-            var entry = iterator.next();
-            JsonNode value = entry.getValue();
-            if (value != null && !value.isNull() && !value.asText().isEmpty()) {
-                return value.asText();
-            }
-        }
-
-        return "";
-    }
-
-    /**
-     * Extracts address fields in a readable format.
-     * Checks common address sub-fields and returns the first non-null value,
-     * or a concatenated string of available fields.
-     */
-    private String extractAddressFields(JsonNode addressNode) {
-        List<String> addressParts = new ArrayList<>();
-
-        // Check for common address fields in order
-        String[] addressFields = {"address", "street", "line1", "city", "state", "zip_code", "zipcode", "postal_code", "country_code", "country"};
-
-        for (String field : addressFields) {
-            if (addressNode.has(field)) {
-                JsonNode fieldValue = addressNode.get(field);
-                if (fieldValue != null && !fieldValue.isNull()) {
-                    String text = fieldValue.asText();
-                    if (!text.isEmpty() && !"null".equalsIgnoreCase(text)) {
-                        addressParts.add(text);
-                    }
-                }
-            }
-        }
-
-        // Return concatenated address parts or empty string
-        return addressParts.isEmpty() ? "" : String.join(", ", addressParts);
+        csvDataBufferConcurrentHashMap.clear();
     }
 
 }
