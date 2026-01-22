@@ -289,7 +289,7 @@ public class FreshDeskConnector extends DLHIngest {
                 CsvDataBuffer childEntityBuffer = csvDataBufferConcurrentHashMap.remove(
                         FreshDeskConstants.MAPPING_TABLES_MAP.get(entity));
                 if (childEntityBuffer != null) {
-                    childEntityBuffer.flushRemaining();
+                    childEntityBuffer.flushRemaining(downloadHelper);
                 }
             }
         }
