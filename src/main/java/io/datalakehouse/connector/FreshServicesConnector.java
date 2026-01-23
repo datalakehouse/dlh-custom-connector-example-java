@@ -6,14 +6,20 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.datalakehouse.common.CoreCustomConstants;
 import io.datalakehouse.common.FreshServiceConstants;
+import io.datalakehouse.common.JsonUtils;
 import io.datalakehouse.utils.ConnectorHelper;
 import io.datalakehouse.config.DLHIngestConfig;
 import io.datalakehouse.connectors.core.ConnectionType;
 import io.datalakehouse.connectors.core.DLHIngest;
+import io.datalakehouse.utils.CsvDataBuffer;
+import io.datalakehouse.utils.MD5Helper;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -51,13 +57,11 @@ public class FreshServicesConnector extends DLHIngest {
 
     @Override
     protected List<String> processData(
-            String entity,
-            InputStream stream,
-            List<String> headers,
-            String parentPlaceholderKey,
-            String parentId
+            String entity, InputStream stream, List<String> headers, String parentPlaceholderKey, String parentId
     ) throws IOException {
-        String normalizedEntity = entity.replace("/", "-");
+
+        downloadHelper.logStartHistory(entity,
+                CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name());
 
         try {
             // Check if this is part of multi-parent processing
@@ -65,18 +69,15 @@ public class FreshServicesConnector extends DLHIngest {
 
             if (isMultiParentProcessing) {
                 // Accumulate data across parents, will be flushed later
-                return processJsonStreamWithAccumulation(normalizedEntity, entity, stream, headers,
+                return processJsonStreamWithAccumulation(entity, stream, headers,
                     parentPlaceholderKey, parentId);
             } else {
                 // Single entity processing - log and write immediately
-                downloadHelper.logStartHistory(normalizedEntity,
-                    CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name());
 
                 if (stream == null) {
-                    return writeEmptyFile(normalizedEntity, headers);
+                    return writeEmptyFile(entity, headers);
                 }
-
-                return processJsonStream(normalizedEntity, entity, stream, headers, parentPlaceholderKey, parentId);
+                return processJsonStream(entity, stream, headers, parentPlaceholderKey, parentId);
             }
 
         } catch (IOException e) {
@@ -90,20 +91,22 @@ public class FreshServicesConnector extends DLHIngest {
      * Processes JSON stream and accumulates data across multiple parent IDs.
      * CSV will be written when all parents are processed.
      */
-    private List<String> processJsonStreamWithAccumulation(String normalizedEntity, String entity,
+    private List<String> processJsonStreamWithAccumulation(String entity,
                                                             InputStream stream, List<String> headers,
                                                             String parentPlaceholderKey, String parentId) throws IOException {
         List<String> entityIds = new ArrayList<>();
 
         // Get or create accumulator for this entity
         CsvDataBuffer accumulator = csvDataBufferConcurrentHashMap.computeIfAbsent(
-            normalizedEntity,
-            k -> new CsvDataBuffer(headers)
-        );
+                entity, k -> new CsvDataBuffer(headers.toArray(new String[0]),
+                        config.getCsvRowLimit(), entity, config.getConnectorType()));
 
         JsonFactory factory = MAPPER.getFactory();
         try (JsonParser parser = factory.createParser(stream)) {
             JsonNode rootNode = MAPPER.readTree(parser);
+            if (rootNode.isArray() && rootNode.size() == 1) {
+                rootNode = rootNode.get(0);
+            }
             JsonNode dataArray = extractDataArray(rootNode, entity);
 
             // Process and accumulate data with timestamp filtering
@@ -130,7 +133,7 @@ public class FreshServicesConnector extends DLHIngest {
                 }
 
                 // Add to accumulator
-                accumulator.addRow(rowValues.toArray(new String[0]));
+                accumulator.addRowValues(rowValues.toArray(new String[0]), downloadHelper);
             }
         }
 
@@ -140,7 +143,7 @@ public class FreshServicesConnector extends DLHIngest {
     /**
      * Processes JSON stream and extracts data based on FreshServices schema
      */
-    private List<String> processJsonStream(String normalizedEntity, String entity,
+    private List<String> processJsonStream(String entity,
                                            InputStream stream, List<String> headers,
                                            String parentPlaceholderKey, String parentId) throws IOException {
         List<String> entityIds = new ArrayList<>();
@@ -154,20 +157,44 @@ public class FreshServicesConnector extends DLHIngest {
             // Extract data array using configured response key
             JsonNode dataArray = extractDataArray(rootNode, entity);
 
-            System.out.println("Processing " + dataArray.size() + " records for entity: " + normalizedEntity);
-
-            int lineCount = processDataArray(dataArray, csvChunk, headers, entityIds, normalizedEntity,
+            int lineCount = processDataArray(dataArray, csvChunk, headers, entityIds, entity,
                 parentPlaceholderKey, parentId);
 
             // Flush remaining data
             if (!csvChunk.isEmpty()) {
-                downloadHelper.writeChunkToCsv(normalizedEntity, csvChunk, lineCount, config.getConnectorType());
+                downloadHelper.writeChunkToCsv(entity, csvChunk, lineCount, config.getConnectorType());
             }
 
-            downloadHelper.logEndHistory(normalizedEntity,
-                CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name(), lineCount);
+            downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name(), lineCount);
 
-            System.out.println("Successfully processed " + lineCount + " records for entity: " + normalizedEntity);
+        }
+
+        if (entity.equals(FreshServiceConstants.FreshServiceEntityNames.AGENTS)) {
+            CsvDataBuffer csvDataBuffer = csvDataBufferConcurrentHashMap.remove(
+                    FreshServiceConstants.FreshServiceEntityNames.AGENTS_ROLES);
+            if (csvDataBuffer != null) {
+                csvDataBuffer.flushRemaining(downloadHelper);
+            }
+            csvDataBuffer = csvDataBufferConcurrentHashMap.remove(
+                    FreshServiceConstants.FreshServiceEntityNames.AGENTS_GROUPS);
+            if (csvDataBuffer != null) {
+                csvDataBuffer.flushRemaining(downloadHelper);
+            }
+            csvDataBuffer = csvDataBufferConcurrentHashMap.remove(
+                    FreshServiceConstants.FreshServiceEntityNames.AGENTS_DEPARTMENTS);
+            if (csvDataBuffer != null) {
+                csvDataBuffer.flushRemaining(downloadHelper);
+            }
+            csvDataBuffer = csvDataBufferConcurrentHashMap.remove(
+                    FreshServiceConstants.FreshServiceEntityNames.AGENTS_WORKSPACES);
+            if (csvDataBuffer != null) {
+                csvDataBuffer.flushRemaining(downloadHelper);
+            }
+            csvDataBuffer = csvDataBufferConcurrentHashMap.remove(
+                    FreshServiceConstants.FreshServiceEntityNames.AGENTS_WORKLOAD_CONFIGS);
+            if (csvDataBuffer != null) {
+                csvDataBuffer.flushRemaining(downloadHelper);
+            }
         }
 
         return entityIds;
@@ -246,7 +273,7 @@ public class FreshServicesConnector extends DLHIngest {
      * Processes all records in the data array with timestamp filtering support
      */
     private int processDataArray(JsonNode dataArray, List<String[]> csvChunk, List<String> headers,
-                                 List<String> entityIds, String normalizedEntity,
+                                 List<String> entityIds, String entity,
                                  String parentPlaceholderKey, String parentId) throws IOException {
         int lineCount = 0;
 //        int filteredCount = 0;
@@ -275,21 +302,174 @@ public class FreshServicesConnector extends DLHIngest {
                 entityIds.add(idValue);
             }
 
+            if (entity.equals(FreshServiceConstants.FreshServiceEntityNames.AGENTS)) {
+                processAgentRecord(record, idValue);
+            }
+
+
             csvChunk.add(rowValues.toArray(new String[0]));
             lineCount++;
 
             // Flush chunk when size limit reached
             if (lineCount % config.getCsvRowLimit() == 0) {
-                downloadHelper.writeChunkToCsv(normalizedEntity, csvChunk, lineCount, config.getConnectorType());
+                downloadHelper.writeChunkToCsv(entity, csvChunk, lineCount, config.getConnectorType());
                 csvChunk.clear();
             }
+
         }
 
 //        if (filteredCount > 0 && lastSyncDate != null) {
-//            System.out.println("Filtered out " + filteredCount + " records (before " + lastSyncDate + ") for entity: " + normalizedEntity);
+//            System.out.println("Filtered out " + filteredCount + " records (before " + lastSyncDate + ") for entity: " + entity);
 //        }
 
         return lineCount;
+    }
+
+    private void processAgentRecord(JsonNode record, String agentId) throws IOException {
+        if (record.has("roles")) {
+            downloadHelper.logStartHistory(
+                    FreshServiceConstants.FreshServiceEntityNames.AGENTS_ROLES,
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name());
+            CsvDataBuffer agentRolesBuffer = csvDataBufferConcurrentHashMap.computeIfAbsent(
+                    FreshServiceConstants.FreshServiceEntityNames.AGENTS_ROLES,
+                    k -> new CsvDataBuffer(
+                            FreshServiceConstants.FreshServiceHeaders.AGENTS_ROLES,
+                            config.getCsvRowLimit(),
+                            FreshServiceConstants.FreshServiceEntityNames.AGENTS_ROLES,
+                            config.getConnectorType()
+                    )
+            );
+            JsonNode rolesNode = record.get("roles");
+            if (rolesNode.isArray()) {
+                for (JsonNode jsonNode : rolesNode) {
+                    List<String> roleAgentHeaders = Arrays.asList(
+                            FreshServiceConstants.FreshServiceHeaders.AGENTS_ROLES);
+                    List<String> roleAgentRowValues = ConnectorHelper.mapValues(jsonNode, roleAgentHeaders);
+                    // Inject agent ID
+                    int idx = roleAgentHeaders.indexOf("AGENT_ID");
+                    if (idx >= 0 && idx < roleAgentRowValues.size()) {
+                        roleAgentRowValues.set(idx, agentId);
+                    }
+                    roleAgentRowValues = ConnectorHelper.setDlhHeaderValues(roleAgentHeaders, roleAgentRowValues);
+                    agentRolesBuffer.addRowValues(roleAgentRowValues.toArray(new String[0]), downloadHelper);
+                }
+            }
+        }
+
+        if (record.has("member_of")) {
+            downloadHelper.logStartHistory(
+                    FreshServiceConstants.FreshServiceEntityNames.AGENTS_GROUPS,
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name());
+            CsvDataBuffer agentGroupsBuffer = csvDataBufferConcurrentHashMap.computeIfAbsent(
+                    FreshServiceConstants.FreshServiceEntityNames.AGENTS_GROUPS,
+                    k -> new CsvDataBuffer(
+                            FreshServiceConstants.FreshServiceHeaders.AGENTS_GROUPS,
+                            config.getCsvRowLimit(),
+                            FreshServiceConstants.FreshServiceEntityNames.AGENTS_GROUPS,
+                            config.getConnectorType()
+                    )
+            );
+            JsonNode groupsNode = record.get("member_of");
+            if (groupsNode.isArray()) {
+                for (JsonNode jsonNode : groupsNode) {
+                    List<String> groupAgentHeaders = Arrays.asList(
+                            FreshServiceConstants.FreshServiceHeaders.AGENTS_GROUPS);
+                    List<String> groupAgentRowValues = new ArrayList<>(
+                            Collections.nCopies(groupAgentHeaders.size(), ""));
+                    groupAgentRowValues.set(groupAgentHeaders.indexOf("AGENT_ID"), agentId);
+                    groupAgentRowValues.set(groupAgentHeaders.indexOf("GROUP_ID"), jsonNode.asText());
+                    groupAgentRowValues = ConnectorHelper.setDlhHeaderValues(groupAgentHeaders, groupAgentRowValues);
+                    agentGroupsBuffer.addRowValues(groupAgentRowValues.toArray(new String[0]), downloadHelper);
+                }
+            }
+        }
+
+        if (record.has("department_ids")) {
+            downloadHelper.logStartHistory(
+                    FreshServiceConstants.FreshServiceEntityNames.AGENTS_DEPARTMENTS,
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name());
+            CsvDataBuffer agentDepartmentsBuffer = csvDataBufferConcurrentHashMap.computeIfAbsent(
+                    FreshServiceConstants.FreshServiceEntityNames.AGENTS_DEPARTMENTS,
+                    k -> new CsvDataBuffer(
+                            FreshServiceConstants.FreshServiceHeaders.AGENTS_DEPARTMENTS,
+                            config.getCsvRowLimit(),
+                            FreshServiceConstants.FreshServiceEntityNames.AGENTS_DEPARTMENTS,
+                            config.getConnectorType()
+                    )
+            );
+            JsonNode departmentsNode = record.get("department_ids");
+            if (departmentsNode.isArray()) {
+                for (JsonNode jsonNode : departmentsNode) {
+                    List<String> departmentAgentHeaders = Arrays.asList(
+                            FreshServiceConstants.FreshServiceHeaders.AGENTS_DEPARTMENTS);
+                    List<String> departmentAgentRowValues = new ArrayList<>(
+                            Collections.nCopies(departmentAgentHeaders.size(), ""));
+                    departmentAgentRowValues.set(departmentAgentHeaders.indexOf("AGENT_ID"), agentId);
+                    departmentAgentRowValues.set(departmentAgentHeaders.indexOf("DEPARTMENT_ID"), jsonNode.asText());
+                    departmentAgentRowValues = ConnectorHelper.setDlhHeaderValues(departmentAgentHeaders, departmentAgentRowValues);
+                    agentDepartmentsBuffer.addRowValues(departmentAgentRowValues.toArray(new String[0]), downloadHelper);
+                }
+            }
+        }
+
+        if (record.has("workspace_ids")) {
+            downloadHelper.logStartHistory(
+                    FreshServiceConstants.FreshServiceEntityNames.AGENTS_WORKSPACES,
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name());
+            CsvDataBuffer agentWorkspacesBuffer = csvDataBufferConcurrentHashMap.computeIfAbsent(
+                    FreshServiceConstants.FreshServiceEntityNames.AGENTS_WORKSPACES,
+                    k -> new CsvDataBuffer(
+                            FreshServiceConstants.FreshServiceHeaders.AGENTS_WORKSPACES,
+                            config.getCsvRowLimit(),
+                            FreshServiceConstants.FreshServiceEntityNames.AGENTS_WORKSPACES,
+                            config.getConnectorType()
+                    )
+            );
+            JsonNode workspacesNode = record.get("workspace_ids");
+            if (workspacesNode.isArray()) {
+                for (JsonNode jsonNode : workspacesNode) {
+                    List<String> workspaceAgentHeaders = Arrays.asList(
+                            FreshServiceConstants.FreshServiceHeaders.AGENTS_WORKSPACES);
+                    List<String> workspaceAgentRowValues = new ArrayList<>(
+                            Collections.nCopies(workspaceAgentHeaders.size(), ""));
+                    workspaceAgentRowValues.set(workspaceAgentHeaders.indexOf("AGENT_ID"), agentId);
+                    workspaceAgentRowValues.set(workspaceAgentHeaders.indexOf("WORKSPACE_ID"), jsonNode.asText());
+                    workspaceAgentRowValues = ConnectorHelper.setDlhHeaderValues(workspaceAgentHeaders, workspaceAgentRowValues);
+                    agentWorkspacesBuffer.addRowValues(workspaceAgentRowValues.toArray(new String[0]), downloadHelper);
+                }
+            }
+        }
+
+        if (record.has("workload_configs")) {
+            downloadHelper.logStartHistory(
+                    FreshServiceConstants.FreshServiceEntityNames.AGENTS_WORKLOAD_CONFIGS,
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name());
+            CsvDataBuffer agentWorkloadConfigsBuffer = csvDataBufferConcurrentHashMap.computeIfAbsent(
+                    FreshServiceConstants.FreshServiceEntityNames.AGENTS_WORKLOAD_CONFIGS,
+                    k -> new CsvDataBuffer(
+                            FreshServiceConstants.FreshServiceHeaders.AGENTS_WORKLOAD_CONFIGS,
+                            config.getCsvRowLimit(),
+                            FreshServiceConstants.FreshServiceEntityNames.AGENTS_WORKLOAD_CONFIGS,
+                            config.getConnectorType()
+                    )
+            );
+            JsonNode workloadConfigsNode = record.get("workload_configs");
+            if (workloadConfigsNode.isArray()) {
+                for (JsonNode jsonNode : workloadConfigsNode) {
+                    List<String> agentWorkloadConfigsHeaders = Arrays.asList(
+                            FreshServiceConstants.FreshServiceHeaders.AGENTS_WORKLOAD_CONFIGS);
+                    List<String> roleAgentRowValues = ConnectorHelper.mapValues(jsonNode, agentWorkloadConfigsHeaders);
+                    // Inject agent ID
+                    int idx = agentWorkloadConfigsHeaders.indexOf("AGENT_ID");
+                    if (idx >= 0 && idx < roleAgentRowValues.size()) {
+                        roleAgentRowValues.set(idx, agentId);
+                    }
+                    roleAgentRowValues = ConnectorHelper.setDlhHeaderValues(agentWorkloadConfigsHeaders, roleAgentRowValues);
+                    agentWorkloadConfigsBuffer.addRowValues(roleAgentRowValues.toArray(new String[0]), downloadHelper);
+                }
+            }
+        }
+
     }
 
     /**
@@ -341,73 +521,12 @@ public class FreshServicesConnector extends DLHIngest {
      */
     @Override
     protected void flushEntityData(String entity) throws IOException {
-        String normalizedEntity = entity.replace("/", "-");
-        CsvDataBuffer csvDataBuffer = csvDataBufferConcurrentHashMap.remove(normalizedEntity);
+        CsvDataBuffer csvDataBuffer = csvDataBufferConcurrentHashMap.remove(entity);
 
         if (csvDataBuffer != null) {
-            downloadHelper.logStartHistory(normalizedEntity,
-                CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name());
-
-            List<List<String[]>> chunks = csvDataBuffer.getChunks(config.getCsvRowLimit());
-            int totalRecords = csvDataBuffer.getTotalRecords();
-
-            int lineCount = 0;
-            for (List<String[]> chunk : chunks) {
-                lineCount += chunk.size() - 1; // Exclude header
-                downloadHelper.writeChunkToCsv(normalizedEntity, chunk, lineCount, config.getConnectorType());
-            }
-
-            downloadHelper.logEndHistory(normalizedEntity,
-                CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name(), totalRecords);
-
-            System.out.println("Successfully flushed " + totalRecords + " records for entity: " + normalizedEntity);
-        }
-    }
-
-    /**
-     * Inner class to accumulate CSV data across multiple parent IDs
-     */
-    private static class CsvDataBuffer {
-        private final List<String> headers;
-        private final List<String[]> rows = new ArrayList<>();
-
-        public CsvDataBuffer(List<String> headers) {
-            this.headers = headers;
+            csvDataBuffer.flushRemaining(downloadHelper);
         }
 
-        public synchronized void addRow(String[] row) {
-            rows.add(row);
-        }
-
-        public synchronized int getTotalRecords() {
-            return rows.size();
-        }
-
-        public synchronized List<List<String[]>> getChunks(int chunkSize) {
-            List<List<String[]>> chunks = new ArrayList<>();
-            List<String[]> currentChunk = new ArrayList<>();
-
-            // Add headers to first chunk
-            currentChunk.add(headers.toArray(new String[0]));
-
-            int rowCount = 0;
-            for (String[] row : rows) {
-                currentChunk.add(row);
-                rowCount++;
-
-                if (rowCount % chunkSize == 0) {
-                    chunks.add(currentChunk);
-                    currentChunk = new ArrayList<>();
-                }
-            }
-
-            // Add remaining rows
-            if (!currentChunk.isEmpty()) {
-                chunks.add(currentChunk);
-            }
-
-            return chunks;
-        }
     }
 }
 

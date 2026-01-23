@@ -2,6 +2,7 @@ package io.datalakehouse.runners;
 
 import io.datalakehouse.common.OnePageCRMConstants;
 import io.datalakehouse.config.DLHIngestConfig;
+import io.datalakehouse.config.QueryParameterResolver;
 import io.datalakehouse.connector.OnePageCRMConnector;
 import io.datalakehouse.connectors.core.DLHIngest;
 import io.datalakehouse.connectors.core.PaginationInfo;
@@ -46,17 +47,19 @@ public class OnePageCRMRunner extends BaseRunner {
         boolean isDelta = Req.has(request.getLastSyncDate());
 
         if (!isDelta) {
+            QueryParameterResolver queryParameterResolver = new QueryParameterResolver(Map.of());
             OnePageCRMConstants.HEADERS_BY_ENTITY.keySet()
                     .forEach(entity -> paginationByEntity.put(entity, pagination));
 
-            connector.run(OnePageCRMConstants.HEADERS_BY_ENTITY, Map.of(), Map.of(),
+            connector.run(OnePageCRMConstants.HEADERS_BY_ENTITY, queryParameterResolver, Map.of(),
                     OnePageCRMConstants.getEntityApiPathMap(), Map.of(), paginationByEntity);
             return;
         }
 
         // Delta + Non-delta
         LocalDateTime since = LocalDateTime.parse(request.getLastSyncDate());
-        Map<String, String> deltaQueryParams = Map.of("since", since.toString());
+
+        QueryParameterResolver queryParameterResolver = new QueryParameterResolver(Map.of("since", since.toString()));
 
         OnePageCRMConstants.DELTA_HEADERS_BY_ENTITY.keySet()
                 .forEach(entity -> paginationByEntity.put(entity, pagination));
@@ -64,10 +67,10 @@ public class OnePageCRMRunner extends BaseRunner {
         OnePageCRMConstants.NON_DELTA_HEADERS_BY_ENTITY.keySet()
                 .forEach(entity -> paginationByEntity.put(entity, pagination));
 
-        connector.run(OnePageCRMConstants.DELTA_HEADERS_BY_ENTITY, deltaQueryParams, Map.of(),
+        connector.run(OnePageCRMConstants.DELTA_HEADERS_BY_ENTITY, queryParameterResolver, Map.of(),
                 OnePageCRMConstants.getEntityApiPathMap(), Map.of(), paginationByEntity);
 
-        connector.run(OnePageCRMConstants.NON_DELTA_HEADERS_BY_ENTITY, Map.of(), Map.of(),
+        connector.run(OnePageCRMConstants.NON_DELTA_HEADERS_BY_ENTITY, new QueryParameterResolver(Map.of()), Map.of(),
                 OnePageCRMConstants.getEntityApiPathMap(), Map.of(), paginationByEntity);
     }
 }
