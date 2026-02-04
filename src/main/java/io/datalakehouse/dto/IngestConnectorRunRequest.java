@@ -29,6 +29,8 @@ public class IngestConnectorRunRequest {
     private String username;
     private String password;
 
+    private String customValue;
+
     // Getters and Setters
     public ConnectionTypeOptions getConnectorType() {
         return connectorType;
@@ -180,5 +182,13 @@ public class IngestConnectorRunRequest {
 
     public void setIsHistorical(Boolean historical) {
         this.isHistorical = historical;
+    }
+
+    public String getCustomValue() {
+        return customValue;
+    }
+
+    public void setCustomValue(String customValue) {
+        this.customValue = customValue;
     }
 }
