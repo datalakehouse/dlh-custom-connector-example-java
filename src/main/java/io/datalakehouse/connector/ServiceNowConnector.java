@@ -42,7 +42,7 @@ public class ServiceNowConnector extends DLHIngest {
         try (JsonParser parser = factory.createParser(stream)) {
             JsonNode rootNode = mapper.readTree(parser);
 
-            JsonNode dataNode = resolveDataArray(entity, rootNode);
+            JsonNode dataNode = resolveDataArray(rootNode);
 
             // Add header row for single-parent processing
             csvChunk.add(headers.toArray(new String[0]));
@@ -79,8 +79,6 @@ public class ServiceNowConnector extends DLHIngest {
 
     /**
      * Override to support incremental page-by-page processing for ServiceNow pagination.
-     * This is the parent-aware version that the SDK calls.
-     * For ServiceNow, we ignore parent context as it's not needed.
      */
     @Override
     protected List<String> processDataPaginated(
@@ -93,7 +91,7 @@ public class ServiceNowConnector extends DLHIngest {
         // State that needs to persist across pages
         List<String> allEntityIds = new ArrayList<>();
         List<String[]> csvChunk = new ArrayList<>();
-        int[] totalLineCount = {0};  // Using array to make it effectively final for lambda
+        int[] totalLineCount = {0};
         boolean[] headerWritten = {false};
 
         // Process pages incrementally using callback
@@ -104,7 +102,7 @@ public class ServiceNowConnector extends DLHIngest {
 
                     try (JsonParser parser = factory.createParser(pageStream)) {
                         JsonNode rootNode = mapper.readTree(parser);
-                        JsonNode dataNode = resolveDataArray(entity, rootNode);
+                        JsonNode dataNode = resolveDataArray(rootNode);
 
                         if (dataNode.isEmpty()) {
                             return true; // Continue to next page
@@ -130,17 +128,15 @@ public class ServiceNowConnector extends DLHIngest {
                                 csvChunk.add(rowValues.toArray(new String[0]));
                                 totalLineCount[0]++;
 
-                                // Flush to CSV when chunk size is reached
                                 if (totalLineCount[0] % config.getCsvRowLimit() == 0) {
                                     downloadHelper.writeChunkToCsv(entity, csvChunk,
                                         totalLineCount[0], config.getConnectorType());
                                     csvChunk.clear();
-                                    // Keep processing but don't add header again
                                 }
                             }
                         }
 
-                        return true; // Continue to next page
+                        return true;
 
                     }
                 } catch (Exception e) {
@@ -165,13 +161,13 @@ public class ServiceNowConnector extends DLHIngest {
         return allEntityIds;
     }
 
-    private JsonNode resolveDataArray(String entity, JsonNode rootNode) {
+    private JsonNode resolveDataArray(JsonNode rootNode) {
 
         if (rootNode.isArray()) {
             return rootNode;
         }
 
-        // ServiceNow typically returns data in a "result" field
+        // ServiceNow returns data in a "result" field
         String[] keys = {"result"};
         for (String key : keys) {
             if (rootNode.has(key) && rootNode.get(key).isArray()) {
