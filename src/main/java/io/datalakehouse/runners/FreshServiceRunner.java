@@ -25,14 +25,14 @@ public class FreshServiceRunner extends BaseRunner {
     @Override
     protected void execute(IngestConnectorRunRequest request) {
         String baseUrl = Req.required(request.getBaseUrl(), "FreshService baseUrl is required");
-        String accessToken = Req.required(request.getAccessToken(), "FreshService accessToken is required");
+        String username = Req.required(request.getUsername(), "FreshService requires username");
+        String password = Req.required(request.getPassword(), "FreshService requires password");
 
         DLHIngestConfig config = new DLHIngestConfig(FreshServiceConstants.CONNECTOR_NAME, request.getCsvRowLimit(),
-                request.getThreadPoolSize(), FreshServiceConstants.excludedEntities, baseUrl, accessToken);
+                request.getThreadPoolSize(), FreshServiceConstants.excludedEntities, baseUrl, request.getAccessToken()
+                != null ? request.getAccessToken() : "");
 
-        FreshServiceRestConnectionType conn = new FreshServiceRestConnectionType(baseUrl, accessToken,
-                request.getClientId(), request.getClientSecret(), request.getRefreshToken(), request.getRedirectUri(),
-                request.getAuthorizationCode(), request.getAuthUrl());
+        FreshServiceRestConnectionType conn = new FreshServiceRestConnectionType(baseUrl, username, password);
 
         boolean isDelta = Req.has(request.getLastSyncDate());
 
