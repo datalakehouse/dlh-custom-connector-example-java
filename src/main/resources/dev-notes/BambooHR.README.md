@@ -3,7 +3,15 @@
 Bamboo HR Has Developer Portal 
 Developer Portal Link : https://developers.bamboohr.com/
 
-I have Set currently enabled all apis with read scopes in the developer portal 
+I have Set currently enabled all apis with read scopes in the developer portal, 
+Scopes enabled :
+```angular2html
+application job_opening benefit company:administration company:info company_file data_cleaner error_management employee employee:assets employee:compensation employee:contact employee:custom_fields 
+employee:custom_fields_encrypted employee:demographic employee:dependent employee:dependent:ssn employee:education employee:emergency_contacts employee:file employee:identification employee:job
+employee:management employee:name employee:payroll employee:photo employee:providers employee:providers:payroll employee:vaccination employee_directory goal goal.write sensitive_employee:address sensitive_employee:creditcards
+sensitive_employee:protected_info tasks access_level benchmarking:compensation field gridlets offline_access public.integration public.user training user user:management payroll payroll:legal_entities payroll:retirements 
+report scheduling:employee_schedule scheduling:schedules scheduling:shifts time_off time_tracking time_tracking:breaks
+```
 
 Bamboo HR is supporting OAuth2.0 Authentication with authorization_code method 
 Authentication URL 
