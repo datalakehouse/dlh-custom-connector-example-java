@@ -6,6 +6,7 @@ import io.datalakehouse.common.CoreCustomConstants;
 import io.datalakehouse.common.JsonUtils;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ public class ConnectorHelper {
     /**
      * Resolves a value from the record node using case-insensitive lookup
      * and supports nested field resolution using underscore notation.
+     * Handles camelCase to snake_case conversion for nested fields.
      */
     public static JsonNode resolveValue(
             JsonNode recordNode,
@@ -46,9 +48,78 @@ public class ConnectorHelper {
             return fieldMap.get(key);
         }
 
-        // 2. Nested resolution ONLY if flat not found
+        // 2. Nested resolution for underscore-separated fields and camelCase support
         if (key.contains("_")) {
+            // Try explicit nested resolution with camelCase support first
+            JsonNode nestedResult = resolveNestedCamelCase(fieldMap, key);
+            if (nestedResult != null) {
+                return nestedResult;
+            }
+
+            // Fallback to JsonUtils for other nested patterns
             return JsonUtils.findNestedValue(recordNode, key);
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolves nested fields by checking if the first part(s) of the underscore-separated
+     * key correspond to a parent object in the fieldMap, then navigates into it.
+     * This Basically combines the logic of nested resolution with camelCase handling.
+     * This handles camelCase fields like "hiringLead" properly matching to "hiring_lead_employee_id".
+     */
+    private static JsonNode resolveNestedCamelCase(Map<String, JsonNode> fieldMap, String key) {
+        String[] parts = key.split("_");
+
+        // Try progressively longer prefixes as potential parent objects
+        for (int i = 1; i < parts.length; i++) {
+            String parentKey = String.join("_", Arrays.copyOfRange(parts, 0, i));
+
+            // Check if this parent exists in fieldMap and is an object
+            if (fieldMap.containsKey(parentKey)) {
+                JsonNode parentNode = fieldMap.get(parentKey);
+                if (parentNode != null && parentNode.isObject()) {
+                    // Build the remaining path
+                    String remainingPath = String.join("_", Arrays.copyOfRange(parts, i, parts.length));
+
+                    // Try to find the remaining path in the parent object
+                    JsonNode result = findInObject(parentNode, remainingPath);
+                    if (result != null) {
+                        return result;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Finds a field in a JSON object using case-insensitive and underscore-to-camelCase matching.
+     * Supports both flat and nested lookups within the object.
+     */
+    private static JsonNode findInObject(JsonNode objectNode, String path) {
+        if (objectNode == null || !objectNode.isObject()) {
+            return null;
+        }
+
+        // First try direct case-insensitive match
+        String pathLower = path.toLowerCase();
+        var fields = objectNode.fields();
+        while (fields.hasNext()) {
+            var entry = fields.next();
+            String fieldKey = entry.getKey();
+            // Match both direct lowercase and camelCase-to-snake_case converted
+            if (fieldKey.toLowerCase().equals(pathLower) ||
+                camelToSnake(fieldKey).equals(pathLower)) {
+                return entry.getValue();
+            }
+        }
+
+        // If path contains underscores, try nested resolution within this object
+        if (path.contains("_")) {
+            return JsonUtils.findNestedValue(objectNode, path);
         }
 
         return null;
@@ -75,7 +146,7 @@ public class ConnectorHelper {
             var iterator = recordNode.fields();
             while (iterator.hasNext()) {
                 var entry = iterator.next();
-                fieldMap.put(entry.getKey().toLowerCase(), entry.getValue());
+                fieldMap.put(camelToSnake(entry.getKey()), entry.getValue());
             }
         } else {
             System.out.println("WARNING: RecordNode is NOT an object! Type: " + recordNode.getNodeType());
@@ -154,6 +225,41 @@ public class ConnectorHelper {
 
         return rowValues;
     }
+
+    /**
+     * Converts CamelCase to snake_case.
+     * If input already contains underscores, it is returned as-is.
+     * Examples:
+     *  "firstName" -> "first_name"
+     *  "FirstName" -> "first_name"
+     *  "first_name" -> "first_name"
+     */
+    private static String camelToSnake(String input) {
+        if (input == null || input.isEmpty()) {
+            return input;
+        }
+
+        StringBuilder result = new StringBuilder(input.length() + 5);
+
+        char prev = 0;
+        for (int i = 0; i < input.length(); i++) {
+            char curr = input.charAt(i);
+
+            if (Character.isUpperCase(curr)) {
+                if (i > 0 &&
+                        (Character.isLowerCase(prev) || Character.isDigit(prev))) {
+                    result.append('_');
+                }
+                result.append(Character.toLowerCase(curr));
+            } else {
+                result.append(curr);
+            }
+            prev = curr;
+        }
+
+        return result.toString();
+    }
+
 
     /**
      * Checks if a header is a DLH metadata column.
