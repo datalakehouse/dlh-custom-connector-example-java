@@ -82,8 +82,8 @@ public class BambooHRRunner extends BaseRunner {
                     "start", startDate.atZone(ZoneOffset.UTC).toLocalDate().toString(),
                     "end", toDate.atZone(ZoneOffset.UTC).toLocalDate().toString());
             queryParameterResolver.setParamValues(paramValues);
+            connector.run(BambooHRConstants.HEADERS_BY_ENTITY, queryParameterResolver, headers,
+                    BambooHRConstants.ENTITY_API_PATH_MAP, BambooHRConstants.ENTITY_DEPENDENCY_MAP, paginationByEntity);
         }
-        connector.run(BambooHRConstants.HEADERS_BY_ENTITY, queryParameterResolver, headers,
-                BambooHRConstants.ENTITY_API_PATH_MAP, BambooHRConstants.ENTITY_DEPENDENCY_MAP, paginationByEntity);
     }
 }
