@@ -112,18 +112,13 @@ public class HeartsLandPOSConnectionType extends RestConnectionType {
                 shouldContinue = pageProcessor.processPage(pageInputStream, state);
             }
 
-            // Log pagination info if logging is enabled
-            if (logger.isLoggable(java.util.logging.Level.INFO)) {
-                logger.info(String.format("Processed page %d for entity %s: fetched %d items, total: %d/%d",
-                        currentPage, entity, currentPageSize, totalFetched, totalRecordCount));
-            }
+            logger.info(String.format("Processed page %d for entity %s: fetched %d items, total: %d/%d",
+                    currentPage, entity, currentPageSize, totalFetched, totalRecordCount));
 
             // Check if we should continue
             if (!shouldContinue || currentPageSize == 0) {
-                if (logger.isLoggable(java.util.logging.Level.INFO)) {
-                    logger.info(String.format("Stopping pagination for entity %s. shouldContinue: %b, currentPageSize: %d",
-                            entity, shouldContinue, currentPageSize));
-                }
+                logger.info(String.format("Stopping pagination for entity %s. shouldContinue: %b, currentPageSize: %d",
+                        entity, shouldContinue, currentPageSize));
                 break;
             }
 
