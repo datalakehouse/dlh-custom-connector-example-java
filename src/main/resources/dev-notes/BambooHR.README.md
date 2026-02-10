@@ -13,6 +13,10 @@ sensitive_employee:protected_info tasks access_level benchmarking:compensation f
 report scheduling:employee_schedule scheduling:schedules scheduling:shifts time_off time_tracking time_tracking:breaks
 ```
 
+Account Creation
+- Created New Account with the following URL : https://www.bamboohr.com/signup/
+- It will automatically generate Demo/sample data with the new account
+
 Bamboo HR is supporting OAuth2.0 Authentication with authorization_code method 
 Authentication URL 
 ```
