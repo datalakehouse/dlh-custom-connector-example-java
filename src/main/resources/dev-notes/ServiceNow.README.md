@@ -1,22 +1,25 @@
 
 ### Pre Authentication Setup (Client Side or Demo Account Side)
 
-Created application in Service Studio
+Created application in Service Studio and then created entry in the application registry for the OAuth Client Credentials
+and then retrieved client id and secret for the authentication 
 
-System OAuth  ->  Application Registry -> Create New Entry
--> Client Credentials
--> Account Scope (Need to Look for the Table API Only Scope (Haven't Tested) )
+Link : https://www.servicenow.com/docs/r/platform-security/authentication/oauth-inbound.html
+
+System OAuth  ->  Application Registry -> New -> New Inbound Integration Experience -> Create New Integration
+-> Client Credentials (With System Administrator User)
+-> Created New Auth Scope for Table api 
 
 ### Authentication
 
 API: https://dev198111.service-now.com/oauth_token.do
 
-Content-Type: application/x-www-form-urlencoded
+Content-Type: application/x-www-form-urlencoded
 
 ```
-grant_type: "client_credentials"
-client_id: "29b4c1281217438284324322f3077187"
-client_secret: "Nq^1kD{*m98kMPSa9ds)eUkdz^k]jy`F"
+grant_type: "client_credentials"
+client_id: "29b4c1281217438284324322f3077187"
+client_secret: "Nq^1kD{*m98kMPSa9ds)eUkdz^k]jy`F"
 ```
 
 - We need to only extract table endpoints  where we can pass different table names and  get different data
@@ -42,12 +45,12 @@ Summary of the connector (Generated)
 **Full Sync Entities:** 0
 ## 🔐 Authentication
 
-**Type:** OAuth 2.0 🎯
+**Type:** OAuth with Client Credentials Grant
 **Token URL:** `https://<instance>.service-now.com/oauth_token.do`
 
-**Flow:** OAuth 2.0 Authorization Code Grant and Client Credentials supported via ServiceNow OAuth Provider
+**Flow:** OAuth Client Credentials supported via ServiceNow OAuth Provider
 
-**Scopes:** `useraccount, useraccount.email, useraccount.roles, api`
+**Scopes:** 'Table API' (we haven't passed scope in the request but we have created scope and assigned to the configuration)
 
 **Alternative Methods:** Basic Authentication, API Key via OAuth tokens
 

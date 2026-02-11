@@ -1,4 +1,4 @@
-- Open Table Authentication
+- Open Table Authentication Link : https://docs.opentable.com/?_gl=1*fcgo8*_gcl_au*MTQ2MjgyMjA5LjE3NjU4Mjk4Mjk.#ce3a8f78-70b7-480f-8902-51219c6d0ae5  
   - OAuth 2
 
 #### Environment and OAuth Base URL

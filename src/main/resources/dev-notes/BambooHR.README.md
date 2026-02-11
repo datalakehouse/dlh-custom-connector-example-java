@@ -2,6 +2,7 @@
 
 Bamboo HR Has Developer Portal 
 Developer Portal Link : https://developers.bamboohr.com/
+API Documentation : https://documentation.bamboohr.com/docs/getting-started
 
 I have Set currently enabled all apis with read scopes in the developer portal, 
 Scopes enabled :
