@@ -1,7 +1,16 @@
 Looked for the Developer portal if they are providing and found it As they are providing the developers Portal.
 
-- Authentication :
-    - Fresh-desk is supporting the Basic Authentication With User name and password generated via the portal
+### Create Test Account 
+
+Link : https://www.freshworks.com/freshdesk/lp/home/?tactic_id=6036691&utm_source=GoogleAdwor[…]&ad_id=719956474269&gad_source=1&gad_campaignid=20418623169
+
+- After Start Free trial we will be redirected to the Freshdesk portal onboarding page 
+- After Onboarding we will be redirected to the Freshdesk portal dashboard
+- Then we need to create the API key for authentication and then we can start testing the APIs
+- We will also receive link on the mail to activate the account and set the password for the account
+
+### Authentication :
+  - Fresh-desk is supporting the Basic Authentication With User name and password generated via the portal
 
       Profile Settings  -> View API Key  -> Code (This is Username)
       Password is `X`

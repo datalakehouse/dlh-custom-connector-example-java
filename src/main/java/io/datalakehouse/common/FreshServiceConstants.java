@@ -24,60 +24,6 @@ public class FreshServiceConstants {
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX")
     };*/
 
-    public static final List<String> REQUIRED_SCOPES = List.of(
-            "freshservice.agents.roles.view",
-            "freshservice.tickets.fields.manage",
-            "freshservice.tickets.view",
-            "freshservice.tickets.time_entries.view",
-            "freshservice.tickets.edit",
-            "freshservice.tickets.tasks.view",
-            "freshservice.tickets.conversations.view",
-            "freshservice.problems.view",
-            "freshservice.problems.fields.view",
-            "freshservice.problems.notes.view",
-            "freshservice.problems.time_entries.view",
-            "freshservice.problems.tasks.view",
-            "freshservice.changes.view",
-            "freshservice.changes.edit",
-            "freshservice.changes.notes.view",
-            "freshservice.changes.time_entries.view",
-            "freshservice.changes.tasks.view",
-            "freshservice.releases.view",
-            "freshservice.releases.notes.view",
-            "freshservice.releases.time_entries.view",
-            "freshservice.releases.tasks.view",
-            "freshservice.workspaces.view",
-            "freshservice.requesters.view",
-            "freshservice.requesters.fields.view",
-            "freshservice.agents.manage",
-            "freshservice.agents.fields.view",
-            "freshservice.agentgroups.manage",
-            "freshservice.locations.view",
-            "freshservice.products.view",
-            "freshservice.vendors.view",
-            "freshservice.assets.view",
-            "freshservice.assets.manage",
-            "freshservice.purchase_orders.view",
-            "freshservice.contract_types.view",
-            "freshservice.contracts.view",
-            "freshservice.departments.view",
-            "freshservice.departments.fields.view",
-            "freshservice.business_hours.view",
-            "freshservice.projects.view",
-            "freshservice.projects.fields.view",
-            "freshservice.projects.manage",
-            "freshservice.solutions.view",
-            "freshservice.service_catalog.edit",
-            "freshservice.announcements.view",
-            "freshservice.onboarding_requests.view",
-            "freshservice.offboarding_requests.view",
-            "freshservice.oncall.view",
-            "freshservice.objects.manage",
-            "freshservice.pir_template.manage",
-            "freshservice.sla_policies.view",
-            "freshservice.canned_responses.view"
-    );
-
     public static final class FreshServiceEntityNames {
         public static final String AGENT_FIELDS = "AGENT_FIELDS";
         public static final String AGENTS = "AGENTS";
@@ -224,10 +170,10 @@ public class FreshServiceConstants {
         public static final String[] RELEASES_NOTES = {"ID","CREATED_AT","UPDATED_AT","BODY","BODY_TEXT","USER_ID","RELEASE_ID","NOTIFY_EMAILS","__ROW_MD5","__DLH_IS_DELETED","__DLH_SYNC_TS","__DLH_START_TS","__DLH_FINISH_TS","__DLH_IS_ACTIVE"};
         public static final String[] RELEASES_TASKS = {"ID","PLANNED_START_DATE","PLANNED_END_DATE","PLANNED_EFFORT","AGENT_ID","STATUS","DUE_DATE","NOTIFY_BEFORE","TITLE","DESCRIPTION","CREATED_AT","UPDATED_AT","CLOSED_AT","RELEASE_ID","GROUP_ID","DELETED","WORKSPACE_ID","CUSTOM_FIELDS","STACK_RANK","__ROW_MD5","__DLH_IS_DELETED","__DLH_SYNC_TS","__DLH_START_TS","__DLH_FINISH_TS","__DLH_IS_ACTIVE"};
         public static final String[] RELEASES_TIME_ENTRIES = {"ID","CREATED_AT","UPDATED_AT","START_TIME","TIMER_RUNNING","BILLABLE","TIME_SPENT","EXECUTED_AT","TASK_ID","WORKSPACE_ID", "RELEASE_ID", "NOTE","AGENT_ID","CUSTOM_FIELDS","__ROW_MD5","__DLH_IS_DELETED","__DLH_SYNC_TS","__DLH_START_TS","__DLH_FINISH_TS","__DLH_IS_ACTIVE"};
-        public static final String[] RELEASES = {"ID","AGENT_ID","DESCRIPTION","DESCRIPTION_TEXT","GROUP_ID","PRIORITY","STATUS","RELEASE_TYPE","SUBJECT","PLANNED_START_DATE","PLANNED_END_DATE","WORK_START_DATE","WORK_END_DATE","DEPARTMENT_ID","CATEGORY","SUB_CATEGORY","ITEM_CATEGORY","WORK_START_DATE","WORK_END_DATE","CREATED_AT","UPDATED_AT","WORKSPACE_ID","ASSETS","ASSOCIATED_CHANGE_IDS","CUSTOM_FIELDS","PLANNING_EFFORT","ATTACHMENTS","__ROW_MD5","__DLH_IS_DELETED","__DLH_SYNC_TS","__DLH_START_TS","__DLH_FINISH_TS","__DLH_IS_ACTIVE"};
+        public static final String[] RELEASES = {"ID", "AGENT_ID", "DESCRIPTION", "DESCRIPTION_TEXT", "GROUP_ID", "PRIORITY", "STATUS", "RELEASE_TYPE", "SUBJECT", "PLANNED_START_DATE", "PLANNED_END_DATE", "DEPARTMENT_ID", "CATEGORY", "SUB_CATEGORY", "ITEM_CATEGORY", "WORK_START_DATE", "WORK_END_DATE", "CREATED_AT", "UPDATED_AT", "WORKSPACE_ID", "ASSETS", "ASSOCIATED_CHANGE_IDS", "CUSTOM_FIELDS", "PLANNING_EFFORT", "ATTACHMENTS", "__ROW_MD5", "__DLH_IS_DELETED", "__DLH_SYNC_TS", "__DLH_START_TS", "__DLH_FINISH_TS", "__DLH_IS_ACTIVE"};
         public static final String[] REQUESTER_FIELDS = {"ID","EDITABLE_IN_SIGNUP","NAME","LABEL","POSITION","USER_FIELD_GROUP_ID","REQUIRED_FOR_AGENTS","REQUESTER_FIELDS_TYPE","REQUESTER_FIELDS_DEFAULT","REQUESTERS_CAN_EDIT","LABEL_FOR_REQUESTERS","REQUIRED_FOR_REQUESTERS","DISPLAYED_FOR_REQUESTERS","CREATED_AT","UPDATED_AT","__ROW_MD5","__DLH_IS_DELETED","__DLH_SYNC_TS","__DLH_START_TS","__DLH_FINISH_TS","__DLH_IS_ACTIVE"};
         public static final String[] REQUESTER_GROUPS = {"ID","NAME","DESCRIPTION","REQUESTER_GROUPS_TYPE","WORKSPACE_ID","__ROW_MD5","__DLH_IS_DELETED","__DLH_SYNC_TS","__DLH_START_TS","__DLH_FINISH_TS","__DLH_IS_ACTIVE"};
-        public static final String[] REQUESTERS = {"ID","IS_AGENT","FIRST_NAME","LAST_NAME","JOB_TITLE","REQUESTERS_LANGUAGE","PRIMARY_EMAIL","SECONDARY_EMAILS","WORK_PHONE_NUMBER","MOBILE_PHONE_NUMBER","DEPARTMENT_IDS","DEPARTMENT_NAMES","CAN_SEE_ALL_TICKETS_FROM_ASSOCIATED_DEPARTMENTS","CAN_SEE_ALL_CHANGES_FROM_ASSOCIATED_DEPARTMENTS","CREATED_AT","REPORTING_MANAGER_ID","ADDRESS","TIME_ZONE","TIME_FORMAT","REQUESTERS_LANGUAGE","LOCATION_ID","LOCATION_NAME","VIP_USER","CUSTOM_FIELDS","ACTIVE","HAS_LOGGED_IN","__ROW_MD5","__DLH_IS_DELETED","__DLH_SYNC_TS","__DLH_START_TS","__DLH_FINISH_TS","__DLH_IS_ACTIVE"};
+        public static final String[] REQUESTERS = {"ID", "IS_AGENT", "FIRST_NAME", "LAST_NAME", "JOB_TITLE", "PRIMARY_EMAIL", "SECONDARY_EMAILS", "WORK_PHONE_NUMBER", "MOBILE_PHONE_NUMBER", "DEPARTMENT_IDS", "DEPARTMENT_NAMES", "CAN_SEE_ALL_TICKETS_FROM_ASSOCIATED_DEPARTMENTS", "CAN_SEE_ALL_CHANGES_FROM_ASSOCIATED_DEPARTMENTS", "CREATED_AT", "REPORTING_MANAGER_ID", "ADDRESS", "TIME_ZONE", "TIME_FORMAT", "REQUESTERS_LANGUAGE", "LOCATION_ID", "LOCATION_NAME", "VIP_USER", "CUSTOM_FIELDS", "ACTIVE", "HAS_LOGGED_IN", "__ROW_MD5", "__DLH_IS_DELETED", "__DLH_SYNC_TS", "__DLH_START_TS", "__DLH_FINISH_TS", "__DLH_IS_ACTIVE"};
         public static final String[] ROLES = {"ID","NAME","DESCRIPTION","ROLES_DEFAULT","ROLES_PRIVILEGES","ROLE_TYPE","CREATED_AT","UPDATED_AT","__ROW_MD5","__DLH_IS_DELETED","__DLH_SYNC_TS","__DLH_START_TS","__DLH_FINISH_TS","__DLH_IS_ACTIVE"};
         public static final String[] SERVICE_CATALOG_CATEGORIES = {"ID","DESCRIPTION","CREATED_AT","UPDATED_AT","NAME","POSITION","WORKSPACE_ID","PARENT_ID","__ROW_MD5","__DLH_IS_DELETED","__DLH_SYNC_TS","__DLH_START_TS","__DLH_FINISH_TS","__DLH_IS_ACTIVE"};
         public static final String[] SERVICE_CATALOG_ITEMS = {"ID","CREATED_AT","UPDATED_AT","NAME","DELIVERY_TIME","DISPLAY_ID","CATEGORY_ID","PRODUCT_ID","QUANTITY","DELETED","ICON_NAME","GROUP_VISIBILITY","ITEM_TYPE","CI_TYPE_ID","COST_VISIBILITY","DELIVERY_TIME_VISIBILITY","CONFIGS","BOTIFIED","VISIBILITY","ALLOW_ATTACHMENTS","ALLOW_QUANTITY","IS_BUNDLE","CREATE_CHILD","WORKSPACE_ID","__ROW_MD5","__DLH_IS_DELETED","__DLH_SYNC_TS","__DLH_START_TS","__DLH_FINISH_TS","__DLH_IS_ACTIVE"};
