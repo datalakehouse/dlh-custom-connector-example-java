@@ -1,10 +1,21 @@
 API Documentation : https://api.freshservice.com/
 Authentication : https://api.freshservice.com/#authentication
+
+### Create Test Account
+
+Link : https://www.freshworks.com/freshservice/lp/home/?tactic_id=5149054&utm_source=google-adwords&utm_medium=FS-Search-Brand-IND&utm_campaign=FS-Search-Brand-IND&utm_term=freshservice%20signup&device=c&matchtype=e&network=g&gclid=EAIaIQobChMIqNnP5OPdkgMVLm4PAh2InTQHEAAYASAAEgI-0vD_BwE&audience=kwd-666859515808&ad_id=716547021270&gad_source=1&gad_campaignid=16731826065
+
+- After the Start Free trial we will be redirected to the Freshservice portal onboarding page
+- After Onboarding we will be redirected to the Freshservice portal dashboard
+- We will also receive link on the mail to activate the account and set the password for the account
+- Then we need to create the API key for authentication and then we can start testing the APIs
+
 - Looked for the Authentication model and found that freshworks is also providing the Oauth Authentication for the Fresh services and also For Fresh works
 - Fresh service is also providing the API Key which is never expiring and we can get it from User Profile
   From User portal :
 
-  - Authentication : 
+### Authentication : 
+
     - Fresh-desk is supporting the Basic Authentication With User name and password generated via the portal
 
       Profile Settings  -> View API Key  -> Code (This is Username)
