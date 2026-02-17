@@ -160,91 +160,98 @@ public class OnePageCRMConnector extends DLHIngest {
         int[] totalLineCount = {0};  // Using array to make it effectively final for lambda
         boolean[] headerWritten = {false};
 
-        List<String> allHeaders = new ArrayList<>(headers);
+        try {
 
-        // Process pages incrementally using callback
-        connectionType.fetchDataPaginated(
-            entity,
-            apiPath,
-            queryParams,
-            customHeaders,
-            entityIds,
-            paginationInfo,
-            (pageStream, state) -> {
-                try {
+            List<String> allHeaders = new ArrayList<>(headers);
 
-                    JsonFactory factory = mapper.getFactory();
+            // Process pages incrementally using callback
+            connectionType.fetchDataPaginated(
+                    entity,
+                    apiPath,
+                    queryParams,
+                    customHeaders,
+                    entityIds,
+                    paginationInfo,
+                    (pageStream, state) -> {
+                        try {
 
-                    try (JsonParser parser = factory.createParser(pageStream)) {
-                        JsonNode rootNode = mapper.readTree(parser);
+                            JsonFactory factory = mapper.getFactory();
 
-                        // Extract data from this single page
-                        JsonNode dataNode = extractDataFromOnePageCRMResponse(rootNode, normalizedEntity);
+                            try (JsonParser parser = factory.createParser(pageStream)) {
+                                JsonNode rootNode = mapper.readTree(parser);
 
-                        if (dataNode.isEmpty()) {
-                            System.out.println("No records in page " + state.page() + " for entity: " + normalizedEntity);
-                            return true; // Continue to next page
-                        }
+                                // Extract data from this single page
+                                JsonNode dataNode = extractDataFromOnePageCRMResponse(rootNode, normalizedEntity);
 
-                        System.out.println("Page " + state.page() + " has " + dataNode.size() + " records");
+                                if (dataNode.isEmpty()) {
+                                    System.out.println("No records in page " + state.page() + " for entity: " + normalizedEntity);
+                                    return true; // Continue to next page
+                                }
 
-                        // Add header only once on first page
-                        if (!headerWritten[0]) {
-                            csvChunk.add(allHeaders.toArray(new String[0]));
-                            headerWritten[0] = true;
-                        }
+                                System.out.println("Page " + state.page() + " has " + dataNode.size() + " records");
 
-                        // Process each record from this page
-                        for (JsonNode recordNode : dataNode) {
-                            List<String> rowValues = ConnectorHelper.mapValues(recordNode, allHeaders);
-                            String idValue = ConnectorHelper.getValueForHeader(allHeaders, rowValues, GustoConstants.ID_HEADERS);
+                                // Add header only once on first page
+                                if (!headerWritten[0]) {
+                                    csvChunk.add(allHeaders.toArray(new String[0]));
+                                    headerWritten[0] = true;
+                                }
 
-                            if (idValue != null) {
-                                allEntityIds.add(idValue);
+                                // Process each record from this page
+                                for (JsonNode recordNode : dataNode) {
+                                    List<String> rowValues = ConnectorHelper.mapValues(recordNode, allHeaders);
+                                    String idValue = ConnectorHelper.getValueForHeader(allHeaders, rowValues, GustoConstants.ID_HEADERS);
+
+                                    if (idValue != null) {
+                                        allEntityIds.add(idValue);
+                                    }
+
+                                    if (normalizedEntity.equals(OnePageCRMConstants.OnePageCRMEntityNames.DEALS)) {
+                                        processDeals(recordNode);
+                                    }
+
+                                    csvChunk.add(rowValues.toArray(new String[0]));
+                                    totalLineCount[0]++;
+
+                                    // Flush to CSV when chunk size is reached
+                                    if (totalLineCount[0] % config.getCsvRowLimit() == 0) {
+                                        downloadHelper.writeChunkToCsv(normalizedEntity, csvChunk,
+                                                totalLineCount[0], config.getConnectorType());
+                                        csvChunk.clear();
+                                        // Keep processing but don't add header again
+                                    }
+                                }
+
+                                System.out.println("Completed page " + state.page() + ", total records so far: " + totalLineCount[0]);
+                                return true; // Continue to next page
+
                             }
-
-                            if (normalizedEntity.equals(OnePageCRMConstants.OnePageCRMEntityNames.DEALS)) {
-                                processDeals(recordNode);
-                            }
-
-                            csvChunk.add(rowValues.toArray(new String[0]));
-                            totalLineCount[0]++;
-
-                            // Flush to CSV when chunk size is reached
-                            if (totalLineCount[0] % config.getCsvRowLimit() == 0) {
-                                downloadHelper.writeChunkToCsv(normalizedEntity, csvChunk,
-                                    totalLineCount[0], config.getConnectorType());
-                                csvChunk.clear();
-                                // Keep processing but don't add header again
-                            }
+                        } catch (Exception e) {
+                            System.err.println("Error processing page " + state.page() + " for entity " + normalizedEntity + ": " + e.getMessage());
+                            e.printStackTrace();
+                            throw new RuntimeException(e);
                         }
-
-                        System.out.println("Completed page " + state.page() + ", total records so far: " + totalLineCount[0]);
-                        return true; // Continue to next page
-
                     }
-                } catch (Exception e) {
-                    System.err.println("Error processing page " + state.page() + " for entity " + normalizedEntity + ": " + e.getMessage());
-                    e.printStackTrace();
-                    throw new RuntimeException(e);
-                }
+            );
+
+            // Flush any remaining rows
+            if (!csvChunk.isEmpty()) {
+                downloadHelper.writeChunkToCsv(normalizedEntity, csvChunk, totalLineCount[0], config.getConnectorType());
             }
-        );
 
-        // Flush any remaining rows
-        if (!csvChunk.isEmpty()) {
-            downloadHelper.writeChunkToCsv(normalizedEntity, csvChunk, totalLineCount[0], config.getConnectorType());
+            // Handle case where no data was fetched at all
+            if (!headerWritten[0]) {
+                csvChunk.add(allHeaders.toArray(new String[0]));
+                downloadHelper.writeChunkToCsv(normalizedEntity, csvChunk, 0, config.getConnectorType());
+            }
+
+            downloadHelper.logEndHistory(normalizedEntity, CoreCustomConstants.HISTORY_ENTITY_TYPE.ONE_PAGE_CRM_ENTITY.name(), totalLineCount[0]);
+            downloadHelper.addBridgeStats(Map.of(entity, totalLineCount[0]), startTime,
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.GUSTO_ENTITY.name());
+        } catch (Exception e) {
+            downloadHelper.logWarning(entity, e.getCause().getLocalizedMessage(),
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.ONE_PAGE_CRM_ENTITY.name());
+            throw e;
         }
-
-        // Handle case where no data was fetched at all
-        if (!headerWritten[0]) {
-            csvChunk.add(allHeaders.toArray(new String[0]));
-            downloadHelper.writeChunkToCsv(normalizedEntity, csvChunk, 0, config.getConnectorType());
-        }
-
-        downloadHelper.logEndHistory(normalizedEntity, CoreCustomConstants.HISTORY_ENTITY_TYPE.ONE_PAGE_CRM_ENTITY.name(), totalLineCount[0]);
-        downloadHelper.addBridgeStats(Map.of(entity, totalLineCount[0]), startTime,
-                CoreCustomConstants.HISTORY_ENTITY_TYPE.GUSTO_ENTITY.name());
 
         // Flush any remaining data in CSV buffers for nested entities (e.g., deal_items)
         flushAllCsvBuffers();
@@ -330,7 +337,8 @@ public class OnePageCRMConnector extends DLHIngest {
 
             return entityIds;
         } catch (IOException e) {
-            e.printStackTrace();
+            downloadHelper.logWarning(entity, e.getCause().getLocalizedMessage(),
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.ONE_PAGE_CRM_ENTITY.name());
             throw e;
         }
     }

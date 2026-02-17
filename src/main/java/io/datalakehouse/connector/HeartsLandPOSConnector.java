@@ -52,67 +52,73 @@ public class HeartsLandPOSConnector extends DLHIngest {
         int lineCount = 0;
         List<String[]> csvChunk = initHeaderChunk(headers);
         List<String> entityIds = new ArrayList<>();
+        try {
+            JsonFactory factory = mapper.getFactory();
+            try (JsonParser parser = factory.createParser(stream)) {
+                JsonNode rootNode = mapper.readTree(parser);
+                JsonNode dataNode = resolveDataArray(entity, rootNode);
 
-        JsonFactory factory = mapper.getFactory();
-        try (JsonParser parser = factory.createParser(stream)) {
-            JsonNode rootNode = mapper.readTree(parser);
-            JsonNode dataNode = resolveDataArray(entity, rootNode);
-
-            // If array is empty, write CSV with just headers and return
-            if (dataNode.isEmpty()) {
-                if (!isMultiParentProcessing) {
-                    downloadHelper.writeChunkToCsv(entity, csvChunk, 0, config.getConnectorType());
-                    downloadHelper.addBridgeStats(Map.of(entity, 0), startTime,
-                            CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name());
-                    downloadHelper.logEndHistory(entity,
-                            CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name(), 0);
+                // If array is empty, write CSV with just headers and return
+                if (dataNode.isEmpty()) {
+                    if (!isMultiParentProcessing) {
+                        downloadHelper.writeChunkToCsv(entity, csvChunk, 0, config.getConnectorType());
+                        downloadHelper.addBridgeStats(Map.of(entity, 0), startTime,
+                                CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name());
+                        downloadHelper.logEndHistory(entity,
+                                CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name(), 0);
+                    }
+                    return entityIds;
                 }
-                return entityIds;
-            }
 
-            for (JsonNode recordNode : dataNode) {
-                Iterable<JsonNode> nodes = recordNode.isArray() ? recordNode : List.of(recordNode);
-                for (JsonNode node : nodes) {
-                    List<String> rowValues = ConnectorHelper.mapValues(node, headers);
+                for (JsonNode recordNode : dataNode) {
+                    Iterable<JsonNode> nodes = recordNode.isArray() ? recordNode : List.of(recordNode);
+                    for (JsonNode node : nodes) {
+                        List<String> rowValues = ConnectorHelper.mapValues(node, headers);
 
-                    // Inject parent ID if this is child entity processing
-                    if (parentPlaceholderKey != null && parentId != null) {
-                        int idx = headers.indexOf(parentPlaceholderKey.toUpperCase());
-                        if (idx >= 0 && idx < rowValues.size()) {
-                            rowValues.set(idx, parentId);
+                        // Inject parent ID if this is child entity processing
+                        if (parentPlaceholderKey != null && parentId != null) {
+                            int idx = headers.indexOf(parentPlaceholderKey.toUpperCase());
+                            if (idx >= 0 && idx < rowValues.size()) {
+                                rowValues.set(idx, parentId);
+                            }
+                        }
+
+                        rowValues = ConnectorHelper.setDlhHeaderValues(headers, rowValues);
+
+                        String idValue = ConnectorHelper.getValueForHeader(headers, rowValues, HeartsLandPosConstants.ID_HEADERS);
+                        if (idValue != null) {
+                            entityIds.add(idValue);
+                        }
+
+                        csvChunk.add(rowValues.toArray(new String[0]));
+                        lineCount++;
+
+                        // When we hit chunk size, flush to CSV
+                        if (lineCount % config.getCsvRowLimit() == 0) {
+                            downloadHelper.writeChunkToCsv(entity, csvChunk, lineCount, config.getConnectorType());
+                            csvChunk.clear();
                         }
                     }
+                }
 
-                    rowValues = ConnectorHelper.setDlhHeaderValues(headers, rowValues);
 
-                    String idValue = ConnectorHelper.getValueForHeader(headers, rowValues, HeartsLandPosConstants.ID_HEADERS);
-                    if (idValue != null) {
-                        entityIds.add(idValue);
-                    }
+                // Flush any remaining rows
+                if (!csvChunk.isEmpty()) {
+                    downloadHelper.writeChunkToCsv(entity, csvChunk, lineCount, config.getConnectorType());
+                    csvChunk.clear();
+                }
 
-                    csvChunk.add(rowValues.toArray(new String[0]));
-                    lineCount++;
-
-                    // When we hit chunk size, flush to CSV
-                    if (lineCount % config.getCsvRowLimit() == 0) {
-                        downloadHelper.writeChunkToCsv(entity, csvChunk, lineCount, config.getConnectorType());
-                        csvChunk.clear();
-                    }
+                if (!isMultiParentProcessing) {
+                    downloadHelper.addBridgeStats(Map.of(entity, lineCount), startTime,
+                            CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name());
+                    downloadHelper.logEndHistory(entity,
+                            CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name(), lineCount);
                 }
             }
-
-            // Flush any remaining rows
-            if (!csvChunk.isEmpty()) {
-                downloadHelper.writeChunkToCsv(entity, csvChunk, lineCount, config.getConnectorType());
-                csvChunk.clear();
-            }
-
-            if (!isMultiParentProcessing) {
-                downloadHelper.addBridgeStats(Map.of(entity, lineCount), startTime,
-                        CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name());
-                downloadHelper.logEndHistory(entity,
-                        CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name(), lineCount);
-            }
+        } catch (IOException e) {
+            downloadHelper.logWarning(entity, e.getCause().getLocalizedMessage(),
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name());
+            throw e;
         }
 
         return entityIds;
@@ -134,79 +140,84 @@ public class HeartsLandPOSConnector extends DLHIngest {
         List<String[]> csvChunk = new ArrayList<>();
         int[] totalLineCount = {0};
         boolean[] headerWritten = {false};
+        try {
 
-        // Process pages incrementally using callback
-        connectionType.fetchDataPaginated(entity, apiPath, queryParams, customHeaders, entityIds, paginationInfo,
-            (pageStream, state) -> {
-                try {
-                    JsonFactory factory = mapper.getFactory();
+            // Process pages incrementally using callback
+            connectionType.fetchDataPaginated(entity, apiPath, queryParams, customHeaders, entityIds, paginationInfo,
+                    (pageStream, state) -> {
+                        try {
+                            JsonFactory factory = mapper.getFactory();
 
-                    // Response doesn't return any data
-                    if (pageStream == null) {
-                        return true;
-                    }
-
-                    try (JsonParser parser = factory.createParser(pageStream)) {
-                        JsonNode rootNode = mapper.readTree(parser);
-                        JsonNode dataNode = resolveDataArray(entity, rootNode);
-
-                        if (dataNode.isEmpty()) {
-                            return true; // Continue to next page
-                        }
-
-                        // Add header only once on first page
-                        if (!headerWritten[0]) {
-                            csvChunk.add(headers.toArray(new String[0]));
-                            headerWritten[0] = true;
-                        }
-
-                        // Process each record from this page
-                        for (JsonNode recordNode : dataNode) {
-                            Iterable<JsonNode> nodes = recordNode.isArray() ? recordNode : List.of(recordNode);
-                            for (JsonNode node : nodes) {
-                                List<String> rowValues = ConnectorHelper.mapValues(node, headers);
-                                rowValues = ConnectorHelper.setDlhHeaderValues(headers, rowValues);
-
-                                String idValue = ConnectorHelper.getValueForHeader(headers, rowValues, HeartsLandPosConstants.ID_HEADERS);
-                                if (idValue != null) {
-                                    allEntityIds.add(idValue);
-                                }
-
-                                csvChunk.add(rowValues.toArray(new String[0]));
-                                totalLineCount[0]++;
-
-                                // Flush to CSV when chunk size is reached, NOT per page
-                                if (totalLineCount[0] % config.getCsvRowLimit() == 0) {
-                                    downloadHelper.writeChunkToCsv(entity, csvChunk,
-                                        totalLineCount[0], config.getConnectorType());
-                                    csvChunk.clear();
-                                    // Keep processing but don't add header again
-                                }
+                            // Response doesn't return any data
+                            if (pageStream == null) {
+                                return true;
                             }
+
+                            try (JsonParser parser = factory.createParser(pageStream)) {
+                                JsonNode rootNode = mapper.readTree(parser);
+                                JsonNode dataNode = resolveDataArray(entity, rootNode);
+
+                                if (dataNode.isEmpty()) {
+                                    return true; // Continue to next page
+                                }
+
+                                // Add header only once on first page
+                                if (!headerWritten[0]) {
+                                    csvChunk.add(headers.toArray(new String[0]));
+                                    headerWritten[0] = true;
+                                }
+
+                                // Process each record from this page
+                                for (JsonNode recordNode : dataNode) {
+                                    Iterable<JsonNode> nodes = recordNode.isArray() ? recordNode : List.of(recordNode);
+                                    for (JsonNode node : nodes) {
+                                        List<String> rowValues = ConnectorHelper.mapValues(node, headers);
+                                        rowValues = ConnectorHelper.setDlhHeaderValues(headers, rowValues);
+
+                                        String idValue = ConnectorHelper.getValueForHeader(headers, rowValues, HeartsLandPosConstants.ID_HEADERS);
+                                        if (idValue != null) {
+                                            allEntityIds.add(idValue);
+                                        }
+
+                                        csvChunk.add(rowValues.toArray(new String[0]));
+                                        totalLineCount[0]++;
+
+                                        // Flush to CSV when chunk size is reached, NOT per page
+                                        if (totalLineCount[0] % config.getCsvRowLimit() == 0) {
+                                            downloadHelper.writeChunkToCsv(entity, csvChunk,
+                                                    totalLineCount[0], config.getConnectorType());
+                                            csvChunk.clear();
+                                            // Keep processing but don't add header again
+                                        }
+                                    }
+                                }
+                                return true; // Continue to next page
+                            }
+                        } catch (Exception e) {
+                            throw new RuntimeException("Error processing page " + state.page() + " for entity " + entity, e);
                         }
-                        return true; // Continue to next page
                     }
-                } catch (Exception e) {
-                    throw new RuntimeException("Error processing page " + state.page() + " for entity " + entity, e);
-                }
+            );
+
+            // Flush any remaining rows
+            if (!csvChunk.isEmpty()) {
+                downloadHelper.writeChunkToCsv(entity, csvChunk, totalLineCount[0], config.getConnectorType());
             }
-        );
 
-        // Flush any remaining rows
-        if (!csvChunk.isEmpty()) {
-            downloadHelper.writeChunkToCsv(entity, csvChunk, totalLineCount[0], config.getConnectorType());
+            // Handle case where no data was fetched at all
+            if (!headerWritten[0]) {
+                csvChunk.add(headers.toArray(new String[0]));
+                downloadHelper.writeChunkToCsv(entity, csvChunk, 0, config.getConnectorType());
+            }
+
+            downloadHelper.addBridgeStats(Map.of(entity, totalLineCount[0]), startTime,
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name());
+            downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name(), totalLineCount[0]);
+        } catch (IOException e) {
+            downloadHelper.logWarning(entity, e.getCause().getLocalizedMessage(),
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name());
+            throw e;
         }
-
-        // Handle case where no data was fetched at all
-        if (!headerWritten[0]) {
-            csvChunk.add(headers.toArray(new String[0]));
-            downloadHelper.writeChunkToCsv(entity, csvChunk, 0, config.getConnectorType());
-        }
-
-        downloadHelper.addBridgeStats(Map.of(entity, totalLineCount[0]), startTime,
-                CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name());
-        downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name(), totalLineCount[0]);
-
         return allEntityIds;
     }
 

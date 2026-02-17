@@ -35,7 +35,13 @@ public class BambooHRConnector extends DLHIngest {
 
     @Override
     protected List<String> processData(String entity, InputStream stream, List<String> headers) throws IOException {
-        return processData(entity, stream, headers, null, null);
+        try {
+            return processData(entity, stream, headers, null, null);
+        } catch (IOException e) {
+            downloadHelper.logWarning(entity, e.getCause().getLocalizedMessage(),
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.BAMBOO_HR_ENTITY.name());
+            throw e;
+        }
     }
 
     @Override

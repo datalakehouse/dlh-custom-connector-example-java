@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.datalakehouse.common.CoreCustomConstants;
 import io.datalakehouse.common.FreshServiceConstants;
-import io.datalakehouse.common.JsonUtils;
 import io.datalakehouse.utils.ConnectorHelper;
 import io.datalakehouse.config.DLHIngestConfig;
 import io.datalakehouse.connectors.core.ConnectionType;
@@ -51,7 +50,13 @@ public class FreshServicesConnector extends DLHIngest {
 
     @Override
     protected List<String> processData(String entity, InputStream stream, List<String> headers) throws IOException {
-        return processData(entity, stream, headers, null, null);
+        try {
+            return processData(entity, stream, headers, null, null);
+        } catch (IOException e) {
+            downloadHelper.logWarning(entity, e.getCause().getLocalizedMessage(),
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITYgi.name());
+            throw e;
+        }
     }
 
     @Override
