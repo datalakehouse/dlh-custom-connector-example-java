@@ -54,7 +54,7 @@ public class FreshServicesConnector extends DLHIngest {
             return processData(entity, stream, headers, null, null);
         } catch (IOException e) {
             downloadHelper.logWarning(entity, e.getCause().getLocalizedMessage(),
-                    CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITYgi.name());
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name());
             throw e;
         }
     }
