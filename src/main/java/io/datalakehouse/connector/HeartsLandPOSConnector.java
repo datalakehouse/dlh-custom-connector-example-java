@@ -14,6 +14,7 @@ import io.datalakehouse.utils.ConnectorHelper;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,7 @@ public class HeartsLandPOSConnector extends DLHIngest {
             downloadHelper.logStartHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name());
         }
 
+        Instant startTime = Instant.now();
         int lineCount = 0;
         List<String[]> csvChunk = initHeaderChunk(headers);
         List<String> entityIds = new ArrayList<>();
@@ -60,6 +62,8 @@ public class HeartsLandPOSConnector extends DLHIngest {
             if (dataNode.isEmpty()) {
                 if (!isMultiParentProcessing) {
                     downloadHelper.writeChunkToCsv(entity, csvChunk, 0, config.getConnectorType());
+                    downloadHelper.addBridgeStats(Map.of(entity, 0), startTime,
+                            CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name());
                     downloadHelper.logEndHistory(entity,
                             CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name(), 0);
                 }
@@ -104,6 +108,8 @@ public class HeartsLandPOSConnector extends DLHIngest {
             }
 
             if (!isMultiParentProcessing) {
+                downloadHelper.addBridgeStats(Map.of(entity, lineCount), startTime,
+                        CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name());
                 downloadHelper.logEndHistory(entity,
                         CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name(), lineCount);
             }
@@ -122,6 +128,7 @@ public class HeartsLandPOSConnector extends DLHIngest {
             String parentId) throws Exception {
 
         downloadHelper.logStartHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name());
+        Instant startTime = Instant.now();
 
         List<String> allEntityIds = new ArrayList<>();
         List<String[]> csvChunk = new ArrayList<>();
@@ -196,6 +203,8 @@ public class HeartsLandPOSConnector extends DLHIngest {
             downloadHelper.writeChunkToCsv(entity, csvChunk, 0, config.getConnectorType());
         }
 
+        downloadHelper.addBridgeStats(Map.of(entity, totalLineCount[0]), startTime,
+                CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name());
         downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.HEARTS_LAND_POS_ENTITY.name(), totalLineCount[0]);
 
         return allEntityIds;

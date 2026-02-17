@@ -16,6 +16,7 @@ import io.datalakehouse.utils.ConnectorHelper;
 import io.datalakehouse.utils.CsvDataBuffer;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -150,6 +151,7 @@ public class OnePageCRMConnector extends DLHIngest {
             List<String> headers) throws Exception {
 
         String normalizedEntity = entity.replace("/", "-");
+        Instant startTime = Instant.now();
         downloadHelper.logStartHistory(normalizedEntity, CoreCustomConstants.HISTORY_ENTITY_TYPE.ONE_PAGE_CRM_ENTITY.name());
 
         // State that needs to persist across pages
@@ -241,7 +243,8 @@ public class OnePageCRMConnector extends DLHIngest {
         }
 
         downloadHelper.logEndHistory(normalizedEntity, CoreCustomConstants.HISTORY_ENTITY_TYPE.ONE_PAGE_CRM_ENTITY.name(), totalLineCount[0]);
-        System.out.println("Completed entity " + normalizedEntity + " with " + totalLineCount[0] + " total records");
+        downloadHelper.addBridgeStats(Map.of(entity, totalLineCount[0]), startTime,
+                CoreCustomConstants.HISTORY_ENTITY_TYPE.GUSTO_ENTITY.name());
 
         // Flush any remaining data in CSV buffers for nested entities (e.g., deal_items)
         flushAllCsvBuffers();
@@ -254,6 +257,7 @@ public class OnePageCRMConnector extends DLHIngest {
     protected List<String> processData(String entity, InputStream stream, List<String> headers) throws IOException {
         try {
             downloadHelper.logStartHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.ONE_PAGE_CRM_ENTITY.name());
+            Instant startTime = Instant.now();
 
             entity = entity.replace("/", "-");
             int lineCount = 0;
@@ -277,6 +281,8 @@ public class OnePageCRMConnector extends DLHIngest {
                         System.out.println("No records to process for entity: " + entity);
                         downloadHelper.writeChunkToCsv(entity, csvChunk, 0, config.getConnectorType());
                         downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.ONE_PAGE_CRM_ENTITY.name(), 0);
+                        downloadHelper.addBridgeStats(Map.of(entity, 0), startTime,
+                                CoreCustomConstants.HISTORY_ENTITY_TYPE.ONE_PAGE_CRM_ENTITY.name());
                         return entityIds;
                     }
 
@@ -310,6 +316,8 @@ public class OnePageCRMConnector extends DLHIngest {
                         downloadHelper.writeChunkToCsv(entity, csvChunk, lineCount, config.getConnectorType());
                     }
 
+                    downloadHelper.addBridgeStats(Map.of(entity, lineCount), startTime,
+                            CoreCustomConstants.HISTORY_ENTITY_TYPE.ONE_PAGE_CRM_ENTITY.name());
                     downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.ONE_PAGE_CRM_ENTITY.name(), lineCount);
                 }
             } else {
@@ -355,6 +363,8 @@ public class OnePageCRMConnector extends DLHIngest {
         for (Map.Entry<String, CsvDataBuffer> entry : csvDataBufferConcurrentHashMap.entrySet()) {
             CsvDataBuffer buffer = entry.getValue();
             buffer.flushRemaining(downloadHelper);
+            downloadHelper.addBridgeStats(Map.of(entry.getKey(), buffer.getTotalRecordsCount()), buffer.getEntityProcessingStartTime(),
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.ONE_PAGE_CRM_ENTITY.name());
         }
         csvDataBufferConcurrentHashMap.clear();
     }

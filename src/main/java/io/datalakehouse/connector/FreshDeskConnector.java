@@ -15,8 +15,10 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -40,6 +42,7 @@ public class FreshDeskConnector extends DLHIngest {
                                        String parentPlaceholderKey, String parentId) throws IOException {
 
         downloadHelper.logStartHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHDESK_ENTITY.name());
+        Instant startTime = Instant.now();
 
         // Response doesn't return any data
         if (stream == null) {
@@ -70,6 +73,8 @@ public class FreshDeskConnector extends DLHIngest {
         if (dataNode.isEmpty()) {
             if (!isMultiParentProcessing) {
                 downloadHelper.writeChunkToCsv(entity, csvChunk, 0, config.getConnectorType());
+                downloadHelper.addBridgeStats(Map.of(entity, 0), startTime,
+                        CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHDESK_ENTITY.name());
                 downloadHelper.logEndHistory(entity,
                         CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHDESK_ENTITY.name(), 0);
             }
@@ -166,6 +171,8 @@ public class FreshDeskConnector extends DLHIngest {
         // Flush any remaining rows for single-parent processing
         if (Objects.nonNull(csvChunk) && !csvChunk.isEmpty()) {
             downloadHelper.writeChunkToCsv(entity, csvChunk, lineCount, config.getConnectorType());
+            downloadHelper.addBridgeStats(Map.of(entity, lineCount), startTime,
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHDESK_ENTITY.name());
             csvChunk.clear();
         }
 
@@ -177,6 +184,9 @@ public class FreshDeskConnector extends DLHIngest {
         if (entity.equals(FreshDeskConstants.FreshDeskEntityNames.SURVEYS)) {
             String mappingEntity = FreshDeskConstants.MAPPING_TABLES_MAP.get(entity);
             csvDataBufferConcurrentHashMap.get(mappingEntity).flushRemaining(downloadHelper);
+            downloadHelper.addBridgeStats(Map.of(mappingEntity, csvDataBufferConcurrentHashMap.get(mappingEntity).getTotalRecordsCount()),
+                    csvDataBufferConcurrentHashMap.get(mappingEntity).getEntityProcessingStartTime(),
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHDESK_ENTITY.name());
         }
 
         return entityIds;
@@ -285,11 +295,16 @@ public class FreshDeskConnector extends DLHIngest {
         CsvDataBuffer csvDataBuffer = csvDataBufferConcurrentHashMap.remove(entity);
         if (csvDataBuffer != null) {
             csvDataBuffer.flushRemaining(downloadHelper);
+            downloadHelper.addBridgeStats(Map.of(entity, csvDataBuffer.getTotalRecordsCount()), csvDataBuffer.getEntityProcessingStartTime(),
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHDESK_ENTITY.name());
             if (FreshDeskConstants.MAPPING_TABLES_MAP.containsKey(entity)) {
-                CsvDataBuffer childEntityBuffer = csvDataBufferConcurrentHashMap.remove(
-                        FreshDeskConstants.MAPPING_TABLES_MAP.get(entity));
+                String childMappingEntity = FreshDeskConstants.MAPPING_TABLES_MAP.get(entity);
+                CsvDataBuffer childEntityBuffer = csvDataBufferConcurrentHashMap.remove(childMappingEntity);
                 if (childEntityBuffer != null) {
                     childEntityBuffer.flushRemaining(downloadHelper);
+                    downloadHelper.addBridgeStats(Map.of(childMappingEntity, childEntityBuffer.getTotalRecordsCount()),
+                            childEntityBuffer.getEntityProcessingStartTime(),
+                            CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHDESK_ENTITY.name());
                 }
             }
         }

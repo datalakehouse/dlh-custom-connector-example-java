@@ -12,8 +12,6 @@ import io.datalakehouse.config.DLHIngestConfig;
 import io.datalakehouse.connectors.core.ConnectionType;
 import io.datalakehouse.connectors.core.DLHIngest;
 import io.datalakehouse.utils.CsvDataBuffer;
-import io.datalakehouse.utils.MD5Helper;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
@@ -21,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -149,6 +148,7 @@ public class FreshServicesConnector extends DLHIngest {
         List<String> entityIds = new ArrayList<>();
         List<String[]> csvChunk = new ArrayList<>();
         csvChunk.add(headers.toArray(new String[0]));
+        Instant startTime = Instant.now();
 
         JsonFactory factory = MAPPER.getFactory();
         try (JsonParser parser = factory.createParser(stream)) {
@@ -165,6 +165,8 @@ public class FreshServicesConnector extends DLHIngest {
                 downloadHelper.writeChunkToCsv(entity, csvChunk, lineCount, config.getConnectorType());
             }
 
+            downloadHelper.addBridgeStats(Map.of(entity, lineCount), startTime,
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name());
             downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name(), lineCount);
 
         }
@@ -174,26 +176,41 @@ public class FreshServicesConnector extends DLHIngest {
                     FreshServiceConstants.FreshServiceEntityNames.AGENTS_ROLES);
             if (csvDataBuffer != null) {
                 csvDataBuffer.flushRemaining(downloadHelper);
+                downloadHelper.addBridgeStats(Map.of(FreshServiceConstants.FreshServiceEntityNames.AGENTS_ROLES, csvDataBuffer.getTotalRecordsCount()),
+                        csvDataBuffer.getEntityProcessingStartTime(),
+                        CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name());
             }
             csvDataBuffer = csvDataBufferConcurrentHashMap.remove(
                     FreshServiceConstants.FreshServiceEntityNames.AGENTS_GROUPS);
             if (csvDataBuffer != null) {
                 csvDataBuffer.flushRemaining(downloadHelper);
+                downloadHelper.addBridgeStats(Map.of(FreshServiceConstants.FreshServiceEntityNames.AGENTS_GROUPS, csvDataBuffer.getTotalRecordsCount()),
+                        csvDataBuffer.getEntityProcessingStartTime(),
+                        CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name());
             }
             csvDataBuffer = csvDataBufferConcurrentHashMap.remove(
                     FreshServiceConstants.FreshServiceEntityNames.AGENTS_DEPARTMENTS);
             if (csvDataBuffer != null) {
                 csvDataBuffer.flushRemaining(downloadHelper);
+                downloadHelper.addBridgeStats(Map.of(FreshServiceConstants.FreshServiceEntityNames.AGENTS_DEPARTMENTS, csvDataBuffer.getTotalRecordsCount()),
+                        csvDataBuffer.getEntityProcessingStartTime(),
+                        CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name());
             }
             csvDataBuffer = csvDataBufferConcurrentHashMap.remove(
                     FreshServiceConstants.FreshServiceEntityNames.AGENTS_WORKSPACES);
             if (csvDataBuffer != null) {
                 csvDataBuffer.flushRemaining(downloadHelper);
+                downloadHelper.addBridgeStats(Map.of(FreshServiceConstants.FreshServiceEntityNames.AGENTS_WORKSPACES, csvDataBuffer.getTotalRecordsCount()),
+                        csvDataBuffer.getEntityProcessingStartTime(),
+                        CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name());
             }
             csvDataBuffer = csvDataBufferConcurrentHashMap.remove(
                     FreshServiceConstants.FreshServiceEntityNames.AGENTS_WORKLOAD_CONFIGS);
             if (csvDataBuffer != null) {
                 csvDataBuffer.flushRemaining(downloadHelper);
+                downloadHelper.addBridgeStats(Map.of(FreshServiceConstants.FreshServiceEntityNames.AGENTS_WORKLOAD_CONFIGS, csvDataBuffer.getTotalRecordsCount()),
+                        csvDataBuffer.getEntityProcessingStartTime(),
+                        CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name());
             }
         }
 
@@ -512,6 +529,8 @@ public class FreshServicesConnector extends DLHIngest {
         List<String[]> csvChunk = new ArrayList<>();
         csvChunk.add(headers.toArray(new String[0]));
         downloadHelper.writeChunkToCsv(normalizedEntity, csvChunk, 0, config.getConnectorType());
+        downloadHelper.addBridgeStats(Map.of(normalizedEntity, 0), Instant.now(),
+                CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name());
         return new ArrayList<>();
     }
 
@@ -525,6 +544,9 @@ public class FreshServicesConnector extends DLHIngest {
 
         if (csvDataBuffer != null) {
             csvDataBuffer.flushRemaining(downloadHelper);
+            downloadHelper.addBridgeStats(Map.of(entity, csvDataBuffer.getTotalRecordsCount()),
+                    csvDataBuffer.getEntityProcessingStartTime(),
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.FRESHSERVICE_ENTITY.name());
         }
 
     }

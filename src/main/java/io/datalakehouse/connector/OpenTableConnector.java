@@ -14,6 +14,7 @@ import io.datalakehouse.utils.ConnectorHelper;
 import org.apache.commons.lang3.StringUtils;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -92,6 +93,7 @@ public class OpenTableConnector extends DLHIngest {
         downloadHelper.logStartHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.OPEN_TABLE_ENTITY.name());
 
         // State that needs to persist across pages
+        Instant startTime = Instant.now();
         List<String> allEntityIds = new ArrayList<>();
         List<String[]> csvChunk = new ArrayList<>();
         int[] totalLineCount = {0};  // Using array to make it effectively final for lambda
@@ -161,6 +163,8 @@ public class OpenTableConnector extends DLHIngest {
             downloadHelper.writeChunkToCsv(entity, csvChunk, 0, config.getConnectorType());
         }
 
+        downloadHelper.addBridgeStats(Map.of(entity, totalLineCount[0]), startTime,
+                CoreCustomConstants.HISTORY_ENTITY_TYPE.OPEN_TABLE_ENTITY.name());
         downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.OPEN_TABLE_ENTITY.name(), totalLineCount[0]);
 
         return allEntityIds;

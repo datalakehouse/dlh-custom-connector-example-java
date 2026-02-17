@@ -13,6 +13,7 @@ import io.datalakehouse.connectors.impl.RestConnectionType;
 import io.datalakehouse.utils.ConnectorHelper;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +30,7 @@ public class ServiceNowConnector extends DLHIngest {
     protected List<String> processData(String entity, InputStream stream, List<String> headers) throws IOException {
 
         downloadHelper.logStartHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.SERVICE_NOW_ENTITY.name());
+        Instant startTime = Instant.now();
         int lineCount = 0;
         List<String[]> csvChunk = new ArrayList<>();
         List<String> entityIds = new ArrayList<>();
@@ -48,6 +50,8 @@ public class ServiceNowConnector extends DLHIngest {
             csvChunk.add(headers.toArray(new String[0]));
             if (dataNode.isEmpty()) {
                 downloadHelper.writeChunkToCsv(entity, csvChunk, 0, config.getConnectorType());
+                downloadHelper.addBridgeStats(Map.of(entity, 0), startTime,
+                        CoreCustomConstants.HISTORY_ENTITY_TYPE.SERVICE_NOW_ENTITY.name());
                 downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.SERVICE_NOW_ENTITY.name(), 0);
                 return entityIds;
             }
@@ -71,6 +75,8 @@ public class ServiceNowConnector extends DLHIngest {
             if (csvChunk.size() > 1) { // More than just header
                 downloadHelper.writeChunkToCsv(entity, csvChunk, lineCount, config.getConnectorType());
             }
+            downloadHelper.addBridgeStats(Map.of(entity, lineCount), startTime,
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.SERVICE_NOW_ENTITY.name());
             downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.SERVICE_NOW_ENTITY.name(), lineCount);
         }
 
@@ -87,6 +93,7 @@ public class ServiceNowConnector extends DLHIngest {
             String parentId) throws Exception {
 
         downloadHelper.logStartHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.SERVICE_NOW_ENTITY.name());
+        Instant startTime = Instant.now();
 
         // State that needs to persist across pages
         List<String> allEntityIds = new ArrayList<>();
@@ -156,6 +163,8 @@ public class ServiceNowConnector extends DLHIngest {
             downloadHelper.writeChunkToCsv(entity, csvChunk, 0, config.getConnectorType());
         }
 
+        downloadHelper.addBridgeStats(Map.of(entity, totalLineCount[0]), startTime,
+                CoreCustomConstants.HISTORY_ENTITY_TYPE.SERVICE_NOW_ENTITY.name());
         downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.SERVICE_NOW_ENTITY.name(), totalLineCount[0]);
 
         return allEntityIds;
