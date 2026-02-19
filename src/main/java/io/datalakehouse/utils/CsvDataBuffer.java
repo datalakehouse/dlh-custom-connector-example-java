@@ -3,6 +3,7 @@ package io.datalakehouse.utils;
 import io.datalakehouse.helper.impl.DownloadHelper;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,6 +23,7 @@ public class CsvDataBuffer {
 
     private final String entity;
     private final int chunkSize;
+    private final Instant entityProcessingStartTime = Instant.now();
     private volatile int lineCount = 0;
     private final String connectorType;
     private volatile boolean containsHeaderRow = false;
@@ -51,6 +53,14 @@ public class CsvDataBuffer {
         downloadHelper.writeChunkToCsv(entity, rowValues, lineCount, connectorType);
         downloadHelper.logEndHistory(entity, connectorType, lineCount);
         rowValues.clear();
+    }
+
+    public synchronized Integer getTotalRecordsCount() {
+        return lineCount;
+    }
+
+    public Instant getEntityProcessingStartTime() {
+        return entityProcessingStartTime;
     }
 
 }

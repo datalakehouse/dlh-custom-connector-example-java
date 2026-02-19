@@ -36,7 +36,13 @@ public class GustoConnector extends DLHIngest {
 
     @Override
     protected List<String> processData(String entity, InputStream stream, List<String> headers) throws IOException {
-        return processData(entity, stream, headers, null, null);
+        try {
+            return processData(entity, stream, headers, null, null);
+        } catch (IOException e) {
+            downloadHelper.logWarning(entity, e.getCause().getLocalizedMessage(),
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.GUSTO_ENTITY.name());
+            throw e;
+        }
     }
 
     @Override
@@ -53,6 +59,7 @@ public class GustoConnector extends DLHIngest {
             return processPayScheduleAssignmentsData(stream);
         }
 
+        Instant startTime = Instant.now();
         downloadHelper.logStartHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.GUSTO_ENTITY.name());
 
         int lineCount = 0;
@@ -103,6 +110,8 @@ public class GustoConnector extends DLHIngest {
                 csvChunk.add(headers.toArray(new String[0]));
                 if (dataNode.isEmpty()) {
                     downloadHelper.writeChunkToCsv(entity, csvChunk, 0, config.getConnectorType());
+                    downloadHelper.addBridgeStats(Map.of(entity, 0), startTime,
+                            CoreCustomConstants.HISTORY_ENTITY_TYPE.GUSTO_ENTITY.name());
                     downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.GUSTO_ENTITY.name(), 0);
                     return entityIds;
                 }
@@ -133,6 +142,11 @@ public class GustoConnector extends DLHIngest {
                 downloadHelper.writeChunkToCsv(entity, csvChunk, lineCount, config.getConnectorType());
             }
 
+            // Only call addBridgeStats for non-multi-parent processing (single entity processing)
+            // For paginated/multi-parent processing, stats are handled in flushEntityData
+            if (!isMultiParentProcessing) {
+                downloadHelper.addBridgeStats(Map.of(entity, lineCount), startTime, CoreCustomConstants.HISTORY_ENTITY_TYPE.GUSTO_ENTITY.name());
+            }
             downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.GUSTO_ENTITY.name(), lineCount);
             processMappingTables(entity, rootNode);
         }
@@ -147,6 +161,8 @@ public class GustoConnector extends DLHIngest {
     protected void flushEntityData(String entity) throws IOException {
         CsvDataBuffer csvDataBuffer = csvDataBufferConcurrentHashMap.remove(entity);
         if (csvDataBuffer != null) {
+            downloadHelper.addBridgeStats(Map.of(entity, csvDataBuffer.getTotalRecordsCount()),
+                    csvDataBuffer.getEntityProcessingStartTime(), CoreCustomConstants.HISTORY_ENTITY_TYPE.GUSTO_ENTITY.name());
             csvDataBuffer.flushRemaining(downloadHelper);
         }
         flushAllMappingTables();
@@ -159,6 +175,7 @@ public class GustoConnector extends DLHIngest {
             throws IOException {
 
         downloadHelper.logStartHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.GUSTO_ENTITY.name());
+        Instant startTime = Instant.now();
 
         int lineCount = 0;
         List<String[]> csvChunk = new ArrayList<>();
@@ -203,6 +220,7 @@ public class GustoConnector extends DLHIngest {
             downloadHelper.writeChunkToCsv(entity, csvChunk, lineCount, config.getConnectorType());
         }
 
+        downloadHelper.addBridgeStats(Map.of(entity, lineCount), startTime, CoreCustomConstants.HISTORY_ENTITY_TYPE.GUSTO_ENTITY.name());
         downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.GUSTO_ENTITY.name(),
                 lineCount);
         return entityIds;

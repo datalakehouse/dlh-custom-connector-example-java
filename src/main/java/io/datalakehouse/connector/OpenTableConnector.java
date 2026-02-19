@@ -14,6 +14,7 @@ import io.datalakehouse.utils.ConnectorHelper;
 import org.apache.commons.lang3.StringUtils;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +74,10 @@ public class OpenTableConnector extends DLHIngest {
                 downloadHelper.writeChunkToCsv(entity, csvChunk, lineCount, config.getConnectorType());
             }
             downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.OPEN_TABLE_ENTITY.name(), lineCount);
+        } catch (IOException e) {
+            downloadHelper.logWarning(entity, e.getCause().getLocalizedMessage(),
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.OPEN_TABLE_ENTITY.name());
+            throw e;
         }
 
         return entityIds;
@@ -92,77 +97,84 @@ public class OpenTableConnector extends DLHIngest {
         downloadHelper.logStartHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.OPEN_TABLE_ENTITY.name());
 
         // State that needs to persist across pages
+        Instant startTime = Instant.now();
         List<String> allEntityIds = new ArrayList<>();
         List<String[]> csvChunk = new ArrayList<>();
         int[] totalLineCount = {0};  // Using array to make it effectively final for lambda
         boolean[] headerWritten = {false};
+        try {
 
-        // Process pages incrementally using callback
-        connectionType.fetchDataPaginated(entity, apiPath, queryParams, customHeaders, entityIds, paginationInfo,
-            (pageStream, state) -> {
-                try {
-                    JsonFactory factory = mapper.getFactory();
+            // Process pages incrementally using callback
+            connectionType.fetchDataPaginated(entity, apiPath, queryParams, customHeaders, entityIds, paginationInfo,
+                    (pageStream, state) -> {
+                        try {
+                            JsonFactory factory = mapper.getFactory();
 
-                    try (JsonParser parser = factory.createParser(pageStream)) {
-                        JsonNode rootNode = mapper.readTree(parser);
-                        JsonNode dataNode = resolveDataArray(entity, rootNode);
+                            try (JsonParser parser = factory.createParser(pageStream)) {
+                                JsonNode rootNode = mapper.readTree(parser);
+                                JsonNode dataNode = resolveDataArray(entity, rootNode);
 
-                        if (dataNode.isEmpty()) {
-                            return true; // Continue to next page
-                        }
-
-                        // Add header only once on first page
-                        if (!headerWritten[0]) {
-                            csvChunk.add(headers.toArray(new String[0]));
-                            headerWritten[0] = true;
-                        }
-
-                        // Process each record from this page
-                        for (JsonNode recordNode : dataNode) {
-                            Iterable<JsonNode> nodes = recordNode.isArray() ? recordNode : List.of(recordNode);
-                            for (JsonNode node : nodes) {
-                                List<String> rowValues = ConnectorHelper.mapValues(node, headers);
-                                String idValue = ConnectorHelper.getValueForHeader(headers, rowValues, OpenTableConstants.ID_HEADERS);
-
-                                if (idValue != null) {
-                                    allEntityIds.add(idValue);
+                                if (dataNode.isEmpty()) {
+                                    return true; // Continue to next page
                                 }
 
-                                csvChunk.add(rowValues.toArray(new String[0]));
-                                totalLineCount[0]++;
-
-                                // Flush to CSV when chunk size is reached
-                                if (totalLineCount[0] % config.getCsvRowLimit() == 0) {
-                                    downloadHelper.writeChunkToCsv(entity, csvChunk,
-                                        totalLineCount[0], config.getConnectorType());
-                                    csvChunk.clear();
-                                    // Keep processing but don't add header again
+                                // Add header only once on first page
+                                if (!headerWritten[0]) {
+                                    csvChunk.add(headers.toArray(new String[0]));
+                                    headerWritten[0] = true;
                                 }
+
+                                // Process each record from this page
+                                for (JsonNode recordNode : dataNode) {
+                                    Iterable<JsonNode> nodes = recordNode.isArray() ? recordNode : List.of(recordNode);
+                                    for (JsonNode node : nodes) {
+                                        List<String> rowValues = ConnectorHelper.mapValues(node, headers);
+                                        String idValue = ConnectorHelper.getValueForHeader(headers, rowValues, OpenTableConstants.ID_HEADERS);
+
+                                        if (idValue != null) {
+                                            allEntityIds.add(idValue);
+                                        }
+
+                                        csvChunk.add(rowValues.toArray(new String[0]));
+                                        totalLineCount[0]++;
+
+                                        // Flush to CSV when chunk size is reached
+                                        if (totalLineCount[0] % config.getCsvRowLimit() == 0) {
+                                            downloadHelper.writeChunkToCsv(entity, csvChunk,
+                                                    totalLineCount[0], config.getConnectorType());
+                                            csvChunk.clear();
+                                            // Keep processing but don't add header again
+                                        }
+                                    }
+                                }
+
+                                return true; // Continue to next page
+
                             }
+                        } catch (Exception e) {
+                            throw new RuntimeException("Error processing page " + state.page() + " for entity " + entity, e);
                         }
-
-                        return true; // Continue to next page
-
                     }
-                } catch (Exception e) {
-                    throw new RuntimeException("Error processing page " + state.page() + " for entity " + entity, e);
-                }
+            );
+
+            // Flush any remaining rows
+            if (!csvChunk.isEmpty()) {
+                downloadHelper.writeChunkToCsv(entity, csvChunk, totalLineCount[0], config.getConnectorType());
             }
-        );
 
-        // Flush any remaining rows
-        if (!csvChunk.isEmpty()) {
-            downloadHelper.writeChunkToCsv(entity, csvChunk, totalLineCount[0], config.getConnectorType());
+            // Handle case where no data was fetched at all
+            if (!headerWritten[0]) {
+                csvChunk.add(headers.toArray(new String[0]));
+                downloadHelper.writeChunkToCsv(entity, csvChunk, 0, config.getConnectorType());
+            }
+
+            downloadHelper.addBridgeStats(Map.of(entity, totalLineCount[0]), startTime,
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.OPEN_TABLE_ENTITY.name());
+            downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.OPEN_TABLE_ENTITY.name(), totalLineCount[0]);
+        } catch (Exception e) {
+            downloadHelper.logWarning(entity,e.getCause().getLocalizedMessage(), CoreCustomConstants.HISTORY_ENTITY_TYPE.OPEN_TABLE_ENTITY.name());
+            throw new RuntimeException("Error processing Entity : " + entity, e);
         }
-
-        // Handle case where no data was fetched at all
-        if (!headerWritten[0]) {
-            csvChunk.add(headers.toArray(new String[0]));
-            downloadHelper.writeChunkToCsv(entity, csvChunk, 0, config.getConnectorType());
-        }
-
-        downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.OPEN_TABLE_ENTITY.name(), totalLineCount[0]);
-
         return allEntityIds;
     }
 
