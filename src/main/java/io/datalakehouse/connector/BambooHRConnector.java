@@ -16,6 +16,7 @@ import io.datalakehouse.utils.CsvDataBuffer;
 import org.apache.commons.lang3.StringUtils;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +35,13 @@ public class BambooHRConnector extends DLHIngest {
 
     @Override
     protected List<String> processData(String entity, InputStream stream, List<String> headers) throws IOException {
-        return processData(entity, stream, headers, null, null);
+        try {
+            return processData(entity, stream, headers, null, null);
+        } catch (IOException e) {
+            downloadHelper.logWarning(entity, e.getCause().getLocalizedMessage(),
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.BAMBOO_HR_ENTITY.name());
+            throw e;
+        }
     }
 
     @Override
@@ -46,6 +53,7 @@ public class BambooHRConnector extends DLHIngest {
             return List.of();
         }
 
+        Instant startTime = Instant.now();
         boolean isMultiParentProcessing = (parentPlaceholderKey != null && parentId != null);
 
         // For multi-parent processing, log start history only once when buffer is created
@@ -81,6 +89,8 @@ public class BambooHRConnector extends DLHIngest {
             if (dataNode.isEmpty()) {
                 if (!isMultiParentProcessing) {
                     downloadHelper.writeChunkToCsv(entity, csvChunk, 0, config.getConnectorType());
+                    downloadHelper.addBridgeStats(Map.of(entity, 0), startTime,
+                            CoreCustomConstants.HISTORY_ENTITY_TYPE.BAMBOO_HR_ENTITY.name());
                     downloadHelper.logEndHistory(entity,
                             CoreCustomConstants.HISTORY_ENTITY_TYPE.BAMBOO_HR_ENTITY.name(), 0);
                 }
@@ -135,10 +145,15 @@ public class BambooHRConnector extends DLHIngest {
                         mappingEntity);
                 if (childEntityBuffer != null) {
                     childEntityBuffer.flushRemaining(downloadHelper);
+                    downloadHelper.addBridgeStats(Map.of(mappingEntity, childEntityBuffer.getTotalRecordsCount()),
+                            childEntityBuffer.getEntityProcessingStartTime(),
+                            CoreCustomConstants.HISTORY_ENTITY_TYPE.BAMBOO_HR_ENTITY.name());
                 }
             }
 
             if (!isMultiParentProcessing) {
+                downloadHelper.addBridgeStats(Map.of(entity, lineCount), startTime,
+                        CoreCustomConstants.HISTORY_ENTITY_TYPE.BAMBOO_HR_ENTITY.name());
                 downloadHelper.logEndHistory(entity,
                         CoreCustomConstants.HISTORY_ENTITY_TYPE.BAMBOO_HR_ENTITY.name(), lineCount);
             }
@@ -157,6 +172,7 @@ public class BambooHRConnector extends DLHIngest {
             String parentId) throws Exception {
 
         downloadHelper.logStartHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.BAMBOO_HR_ENTITY.name());
+        Instant entityProcessingStartTime = Instant.now();
 
         List<String> allEntityIds = new ArrayList<>();
         List<String[]> csvChunk = new ArrayList<>();
@@ -227,6 +243,8 @@ public class BambooHRConnector extends DLHIngest {
             downloadHelper.writeChunkToCsv(entity, csvChunk, 0, config.getConnectorType());
         }
 
+        downloadHelper.addBridgeStats(Map.of(entity, totalLineCount[0]), entityProcessingStartTime,
+                CoreCustomConstants.HISTORY_ENTITY_TYPE.BAMBOO_HR_ENTITY.name());
         downloadHelper.logEndHistory(entity, CoreCustomConstants.HISTORY_ENTITY_TYPE.BAMBOO_HR_ENTITY.name(), totalLineCount[0]);
 
         return allEntityIds;
@@ -437,11 +455,17 @@ public class BambooHRConnector extends DLHIngest {
     protected void flushEntityData(String entity) throws IOException {
         CsvDataBuffer csvDataBuffer = csvDataBufferConcurrentHashMap.remove(entity);
         if (csvDataBuffer != null) {
+            downloadHelper.addBridgeStats(Map.of(entity, csvDataBuffer.getTotalRecordsCount()),
+                    csvDataBuffer.getEntityProcessingStartTime(),
+                    CoreCustomConstants.HISTORY_ENTITY_TYPE.BAMBOO_HR_ENTITY.name());
             csvDataBuffer.flushRemaining(downloadHelper);
             if (BambooHRConstants.MAPPING_TABLES_MAP.containsKey(entity)) {
-                CsvDataBuffer childEntityBuffer = csvDataBufferConcurrentHashMap.remove(
-                        BambooHRConstants.MAPPING_TABLES_MAP.get(entity));
+                String childEntity = BambooHRConstants.MAPPING_TABLES_MAP.get(entity);
+                CsvDataBuffer childEntityBuffer = csvDataBufferConcurrentHashMap.remove(childEntity);
                 if (childEntityBuffer != null) {
+                    downloadHelper.addBridgeStats(Map.of(childEntity, csvDataBuffer.getTotalRecordsCount()),
+                            csvDataBuffer.getEntityProcessingStartTime(),
+                            CoreCustomConstants.HISTORY_ENTITY_TYPE.BAMBOO_HR_ENTITY.name());
                     childEntityBuffer.flushRemaining(downloadHelper);
                 }
             }
